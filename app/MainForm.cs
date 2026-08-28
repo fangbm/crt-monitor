@@ -183,6 +183,7 @@ public sealed class MainForm : Form
             ["autostart"] = _cfg.Autostart ?? false,
             ["themes"] = _themes,
             ["plugins"] = _pluginScripts,
+            ["burnin"] = string.IsNullOrWhiteSpace(_cfg.Burnin) ? "always" : _cfg.Burnin,
         };
         return JsonSerializer.Serialize(msg, ConfigJson.Web);
     }

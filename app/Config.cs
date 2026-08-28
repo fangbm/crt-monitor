@@ -23,6 +23,8 @@ public sealed class Config
     /// <summary>告警规则；触发后前端红色横幅，可选蜂鸣</summary>
     public List<AlertRule>? Alerts { get; init; }
     public bool AlertSound { get; init; }
+    /// <summary>防灼屏微抖：always（默认，整页每30秒±6px漂移）/ idle / off</summary>
+    public string Burnin { get; init; } = "always";
 }
 
 public sealed class AlertRule

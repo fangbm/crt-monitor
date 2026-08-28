@@ -131,6 +131,9 @@ body::before {
   flex-direction: column;
   gap: 8px;
   padding: 14px 18px;
+  /* 防灼屏微抖：transform 由 JS 低频更新 */
+  transition: transform 3s ease-in-out;
+  will-change: transform;
 }
 
 #hd {

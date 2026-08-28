@@ -49,6 +49,8 @@ export interface ShellConfig {
   themes?: ShellTheme[] | null;
   /** plugins/*.js 文件名，前端经 https://plugins.local/ 动态加载 */
   plugins?: string[] | null;
+  /** 防灼屏微抖模式：always（默认）/ idle / off */
+  burnin?: string;
 }
 
 export interface AutostartNotice {

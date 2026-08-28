@@ -114,6 +114,7 @@ let widgets: Widget[] = [];
 let latestTick: MetricsTick | null = null;
 let currentTheme = "green";
 let pluginsReady: Promise<void> = Promise.resolve();
+let shellBurnin: string | undefined;
 
 function fmtUptime(sec: number): string {
   const d = Math.floor(sec / 86400);
@@ -544,6 +545,8 @@ function applyConfig(c: ShellConfig): void {
   currentTheme = c.theme;
   applyTheme(c.theme);
   applyEffects(c);
+  shellBurnin = c.burnin;
+  applyBurninMode(c.burnin);
   if (c.pages && c.pages.length > 0) {
     pages = c.pages;
   } else if (c.layout && c.layout.length > 0) {
@@ -635,6 +638,44 @@ function bindHotkeys(): void {
   });
 }
 
+/* ---------- 防灼屏微抖：整页低频小幅漂移，让亮区不停留 ---------- */
+
+let driftTimer: ReturnType<typeof setInterval> | null = null;
+
+function startBurninDrift(): void {
+  if (driftTimer) return;
+  const app = document.getElementById("app")!;
+  const boot = document.getElementById("boot");
+  driftTimer = setInterval(() => {
+    // ±6px 随机缓移，transition 让移动平滑不可感
+    const x = (Math.random() * 12 - 6).toFixed(1);
+    const y = (Math.random() * 12 - 6).toFixed(1);
+    app.style.transform = `translate(${x}px, ${y}px)`;
+    if (boot) boot.style.transform = app.style.transform;
+  }, 30_000);
+}
+
+function stopBurninDrift(): void {
+  if (driftTimer) {
+    clearInterval(driftTimer);
+    driftTimer = null;
+    document.getElementById("app")!.style.transform = "";
+    const boot = document.getElementById("boot");
+    if (boot) boot.style.transform = "";
+  }
+}
+
+function applyBurninMode(mode: string | undefined): void {
+  stopBurninDrift();
+  if (mode === "off") return;
+  if (mode === "idle") {
+    // 仅屏保期间不需要漂移（屏保本身在切换），退出屏保常开无意义——跟随屏保状态
+    // idle 模式：屏保显示时漂移时钟层，由 screensaver 内部处理；这里不常开
+    return;
+  }
+  startBurninDrift(); // always（默认）
+}
+
 /* ---------- 屏保：5 分钟无操作切暗色大时钟，任意输入退出 ---------- */
 
 const IDLE_MS = 5 * 60 * 1000;
@@ -646,8 +687,10 @@ function showScreensaver(on: boolean): void {
   if (on) {
     const tick = () => {
       const d = new Date();
-      const clock = ss.querySelector(".ss-clock")!;
-      const date = ss.querySelector(".ss-date")!;
+      const clock = ss.querySelector(".ss-clock") as HTMLElement;
+      const date = ss.querySelector(".ss-date") as HTMLElement;
+      // 屏保时钟自身也做小幅漂移（idle 模式的防灼屏载体）
+      clock.style.transform = `translate(${(Math.random() * 40 - 20).toFixed(0)}px, ${(Math.random() * 24 - 12).toFixed(0)}px)`;
       clock.textContent = d.toLocaleTimeString("zh-CN", { hour12: false, hour: "2-digit", minute: "2-digit" });
       const names = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
       date.textContent = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${names[d.getDay()]}`;
@@ -698,6 +741,7 @@ async function main(): Promise<void> {
   bindEditInteractions(document.getElementById("grid")!);
   document.getElementById("btn-cards")!.addEventListener("click", openCardManager);
   bindIdleWatch();
+  applyBurninMode(shellBurnin);
   document.getElementById("app")!.hidden = false;
   mountPage(currentPage);
 }
