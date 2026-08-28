@@ -1,0 +1,15 @@
+{
+  "name": "crt-monitor",
+  "private": true,
+  "version": "0.8.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "typescript": "~5.7",
+    "vite": "^6"
+  }
+}

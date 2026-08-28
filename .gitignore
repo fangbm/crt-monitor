@@ -1,0 +1,19 @@
+# build artifacts
+node_modules/
+dist/
+app/bin/
+app/obj/
+app/publish/
+plugins-src/BatteryPlugin/bin/
+plugins-src/BatteryPlugin/obj/
+
+# runtime data (contains machine usage info / location)
+app/publish/config.json
+crt.log
+history.json
+alerts.json
+*.png
+!docs/preview.png
+
+# tools
+.tools/

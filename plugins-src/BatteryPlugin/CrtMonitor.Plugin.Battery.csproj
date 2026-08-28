@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>CrtMonitor.Plugin.Battery</AssemblyName>
+    <RootNamespace>CrtMonitor.Plugin.Battery</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 只借类型定义，不把宿主 dll 复制进插件目录 -->
+    <ProjectReference Include="..\..\app\CrtMonitor.csproj" Private="false" />
+  </ItemGroup>
+
+</Project>
