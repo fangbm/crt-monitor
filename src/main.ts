@@ -3,7 +3,7 @@ import "./style.css";
 import { applyTheme, setDefaultEffects, setThemeCatalog, themeIds, themeList } from "./lib/theme";
 import type { MetricsTick } from "./lib/types";
 import { setHistory } from "./lib/historyStore";
-import { registeredWidgets, el, type Widget, type WidgetDef } from "./widgets/registry";
+import { registeredWidgets, setCardConf, el, type Widget, type WidgetDef } from "./widgets/registry";
 import "./widgets/cpu";
 import "./widgets/mem";
 import "./widgets/disk";
@@ -18,6 +18,10 @@ import "./widgets/heatmap";
 import "./widgets/leds";
 import "./widgets/weather3";
 import "./widgets/alertlog";
+import "./widgets/media";
+import "./widgets/netnic";
+import "./widgets/scriptcard";
+import "./widgets/remotecard";
 
 const LOGO = String.raw`  ____ ____  ____    ____
  / ___/ ___||  _ \  |  _ \ ___  __ _ _   _  ___
@@ -547,6 +551,7 @@ function applyConfig(c: ShellConfig): void {
   applyEffects(c);
   shellBurnin = c.burnin;
   applyBurninMode(c.burnin);
+  setCardConf(c.cardconf);
   if (c.pages && c.pages.length > 0) {
     pages = c.pages;
   } else if (c.layout && c.layout.length > 0) {

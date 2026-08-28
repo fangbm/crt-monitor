@@ -86,6 +86,8 @@
 | **v0.6 自由布局** ✅ | 页面协议升级为百分比坐标（`widgets:[{id,x,y,w,h}]`，旧 `layout` 数组自动转换）；编辑模式拖拽移动 + 任意边/角调整宽高（纯坐标 ±16px 命中，Pointer Events），吸附 2% 网格，松手即持久化；画布绝对定位 + 百分比尺寸，窗口任意缩放按比例自适应 |
 | **v0.7 卡片管理器** ✅ | 编辑模式下 `＋CARDS` 按钮 / `C` 键打开：勾选当前页展示哪些卡片（▣/▢），新卡片自动扫描空位放置，插件卡片标记"插件"徽章；`window.CRT.registerWidget` 注册的卡片自动打插件标记 |
 | **v0.8 体验包** ✅ | 托盘图标（CPU% 数字动态重绘、左键显隐、右键导出/导入配置/退出；Esc 隐藏到托盘）、告警中心（alerts.json 持久化 + 气泡通知 + alertlog 卡片）、CPU 每核热力图卡片、磁盘 R/W 指示灯卡片、3 日天气预报（Open-Meteo daily）、今日上/下行流量累计（tick 积分，随 history.json 持久化）、S 键截图到 图片\CRT-Monitor\、屏保（5 分钟无操作切暗色大时钟防灼屏）、开机问候语。修复：页面 reload 后 config 不重发导致主题目录/布局回退（"modern 切不出来"的根因）、wwwroot 旧 bundle 堆积、快捷键双触发 |
+| **v0.8.1 防灼屏** ✅ | 整页低频漂移（±6px/30s，3s 缓动），burnin 配置 always/idle/off；屏保时钟同步漂移 |
+| **v0.9 互联与扩展** ✅ | 远程多机监控（被监控端 `--serve` HTTP 端点复用 Scheduler，监控端 RemoteCollector 拉取 + remote 卡片，断连 10s 显示离线）、脚本文本源（config scripts 定时跑外部命令，stdout 首行进 scripts 卡片）、正在播放媒体卡（WinRT 媒体会话：标题/艺术家/进度）、分网卡速率（netnic 卡片）、历史 7d（10 分钟降采样 + hist 卡片 1H/6H/24H/7D 档位）、cardconf 卡片参数（proc.count 等）、单实例互斥、渲染进程崩溃自动重载、窗口屏幕记忆、GitHub Actions tag 自动发布 |
 
 ## 6. 目录结构（实际）
 

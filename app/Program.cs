@@ -13,8 +13,23 @@ internal static class Program
     private static extern uint SetThreadExecutionState(uint esFlags);
 
     [STAThread]
-    private static void Main()
+    private static void Main(string[] args)
     {
+        // --serve：无界面数据端点模式（给远程监控用，见 README）
+        if (args.Contains("--serve"))
+        {
+            ServeMode.Run(ConfigStore.Load());
+            return;
+        }
+
+        // 单实例：已有实例在跑则直接退出
+        using var mutex = new Mutex(initiallyOwned: true, @"Local\CrtMonitor.SingleInstance", out bool first);
+        if (!first)
+        {
+            Log("another instance is already running, exit");
+            return;
+        }
+
         // 副屏常亮，不让系统息屏
         SetThreadExecutionState(ES_CONTINUOUS | ES_DISPLAY_REQUIRED);
 

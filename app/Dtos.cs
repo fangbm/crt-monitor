@@ -33,12 +33,47 @@ public sealed class MetricsDto
     [JsonPropertyName("alerts")] public List<string> Alerts { get; set; } = new();
     /// <summary>最近的告警记录（新→旧，最多 30 条）</summary>
     [JsonPropertyName("alert_history")] public List<AlertEntryDto> AlertHistory { get; set; } = new();
+    [JsonPropertyName("media")] public MediaDto? Media { get; set; }
+    [JsonPropertyName("scripts")] public List<ScriptDto> Scripts { get; set; } = new();
+    [JsonPropertyName("remotes")] public List<RemoteDto> Remotes { get; set; } = new();
 }
 
 public sealed class AlertEntryDto
 {
     [JsonPropertyName("ts")] public long Ts { get; set; }
     [JsonPropertyName("msg")] public string Msg { get; set; } = "";
+}
+
+public sealed class MediaDto
+{
+    [JsonPropertyName("title")] public string Title { get; set; } = "";
+    [JsonPropertyName("artist")] public string Artist { get; set; } = "";
+    /** playing / paused / stopped / "" (无会话) */
+    [JsonPropertyName("status")] public string Status { get; set; } = "";
+    [JsonPropertyName("pos_sec")] public double PosSec { get; set; }
+    [JsonPropertyName("dur_sec")] public double DurSec { get; set; }
+}
+
+public sealed class ScriptDto
+{
+    [JsonPropertyName("name")] public string Name { get; set; } = "";
+    [JsonPropertyName("value")] public string Value { get; set; } = "";
+    /** ms；-1 = 尚未成功过 */
+    [JsonPropertyName("age_ms")] public long AgeMs { get; set; }
+}
+
+public sealed class RemoteDto
+{
+    [JsonPropertyName("name")] public string Name { get; set; } = "";
+    [JsonPropertyName("cpu")] public double Cpu { get; set; }
+    /** 0-100 */
+    [JsonPropertyName("mem_pct")] public double MemPct { get; set; }
+    [JsonPropertyName("mem_used")] public ulong MemUsed { get; set; }
+    [JsonPropertyName("mem_total")] public ulong MemTotal { get; set; }
+    [JsonPropertyName("rx_bps")] public double RxBps { get; set; }
+    [JsonPropertyName("tx_bps")] public double TxBps { get; set; }
+    /// <summary>数据年龄 ms；超 10s 视为离线</summary>
+    [JsonPropertyName("age_ms")] public long AgeMs { get; set; }
 }
 
 public sealed class BatteryDto
@@ -56,6 +91,8 @@ public sealed class HistoryDto
     /** 分钟起点 unix 秒 */
     [JsonPropertyName("points")] public List<HistoryPointDto> Points { get; set; } = new();
     [JsonPropertyName("stats")] public HistoryStatsDto Stats { get; set; } = new();
+    /// <summary>7 天降采样（10 分钟粒度）</summary>
+    [JsonPropertyName("points10m")] public List<HistoryPointDto> Points10m { get; set; } = new();
 }
 
 public sealed class HistoryPointDto
@@ -146,6 +183,15 @@ public sealed class DiskDto
 
 public sealed class NetDto
 {
+    [JsonPropertyName("rx_bps")] public double RxBps { get; set; }
+    [JsonPropertyName("tx_bps")] public double TxBps { get; set; }
+    /// <summary>分网卡速率（按总流量排序，最多 6 条）</summary>
+    [JsonPropertyName("nics")] public List<NicDto> Nics { get; set; } = new();
+}
+
+public sealed class NicDto
+{
+    [JsonPropertyName("name")] public string Name { get; set; } = "";
     [JsonPropertyName("rx_bps")] public double RxBps { get; set; }
     [JsonPropertyName("tx_bps")] public double TxBps { get; set; }
 }

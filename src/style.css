@@ -693,6 +693,66 @@ body.edit button {
   text-overflow: ellipsis;
 }
 
+/* 媒体卡 */
+.md-title {
+  font-size: clamp(14px, 2.2vh, 20px);
+  color: var(--phos-bright);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--phos) var(--glow), transparent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.md-artist {
+  color: var(--phos-dim);
+  font-size: clamp(11px, 1.6vh, 15px);
+}
+
+.md-bar {
+  letter-spacing: -1px;
+  overflow: hidden;
+  white-space: nowrap;
+  margin-top: auto;
+}
+
+.md-time {
+  color: var(--phos-dim);
+  font-size: clamp(10px, 1.4vh, 13px);
+  font-variant-numeric: tabular-nums;
+}
+
+.nn-list .w-val,
+.sc-list .w-val {
+  font-size: clamp(10px, 1.3vh, 13px);
+}
+
+.rm-list .w-label {
+  color: var(--phos-bright);
+}
+
+/* hist 档位切换按钮 */
+.hg-range {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.hg-btn {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--phos-dim);
+  background: none;
+  border: 1px solid var(--phos-faint);
+  padding: 1px 6px;
+  cursor: pointer;
+}
+
+.hg-btn.on {
+  color: var(--phos-bright);
+  border-color: var(--phos);
+}
+
 /* 屏保：全屏暗色大时钟 */
 #screensaver {
   position: fixed;

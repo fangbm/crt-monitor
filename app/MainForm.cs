@@ -29,7 +29,8 @@ public sealed class MainForm : Form
         FormBorderStyle = FormBorderStyle.None;
         StartPosition = FormStartPosition.Manual;
         ShowInTaskbar = false;
-        Bounds = PickScreen().Bounds;
+        if (!RestoreWindowState())
+            Bounds = PickScreen().Bounds;
 
         _web.Dock = DockStyle.Fill;
         Controls.Add(_web);
@@ -40,7 +41,32 @@ public sealed class MainForm : Form
         Load += async (_, _) => await InitWebViewAsync();
         KeyPreview = true;
         KeyDown += OnShellHotkey;
-        FormClosed += (_, _) => { _timer.Stop(); _scheduler.Dispose(); _tray.Dispose(); };
+        FormClosed += (_, _) =>
+        {
+            _timer.Stop();
+            _scheduler.Dispose();
+            _tray.Dispose();
+            SaveWindowState();
+        };
+    }
+
+    /// <summary>窗口状态记忆：屏幕序号，windowstate.json。返回是否成功恢复。</summary>
+    private bool RestoreWindowState()
+    {
+        try
+        {
+            string path = Path.Combine(AppContext.BaseDirectory, "windowstate.json");
+            if (!File.Exists(path)) return false;
+            using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(path));
+            if (!doc.RootElement.TryGetProperty("screen", out var s) || !s.TryGetInt32(out int screen)) return false;
+            if (screen < 0 || screen >= Screen.AllScreens.Length) return false;
+            Bounds = Screen.AllScreens[screen].Bounds;
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     /// <summary>
@@ -111,6 +137,23 @@ public sealed class MainForm : Form
         }
     }
 
+    /// <summary>窗口状态记忆：屏幕序号 + 全屏与否，windowstate.json。</summary>
+    private void SaveWindowState()
+    {
+        try
+        {
+            var state = new Dictionary<string, object?>
+            {
+                ["screen"] = Array.IndexOf(Screen.AllScreens, PickScreen()),
+                ["fullscreen"] = _fullscreen,
+            };
+            File.WriteAllText(
+                Path.Combine(AppContext.BaseDirectory, "windowstate.json"),
+                System.Text.Json.JsonSerializer.Serialize(state, ConfigJson.Web));
+        }
+        catch { /* 记不住就算了 */ }
+    }
+
     private static Screen PickScreen()
     {
         var screens = Screen.AllScreens;
@@ -121,6 +164,13 @@ public sealed class MainForm : Form
     {
         await _web.EnsureCoreWebView2Async();
         var core = _web.CoreWebView2;
+
+        // 渲染进程崩溃后自动重载（config 重发会自愈前端状态）
+        core.ProcessFailed += (_, args) =>
+        {
+            Program.Log($"webview process failed: {args.ProcessFailedKind}, reloading");
+            try { core.Reload(); } catch { /* 重载失败等下次 */ }
+        };
 
         // 关键：清掉 HTTP 缓存。虚拟域 (app.local) 的 index.html 会被 WebView2 缓存，
         // 升级构建后可能仍加载旧前端，导致"新功能时有时无"的灵异行为。
@@ -184,6 +234,7 @@ public sealed class MainForm : Form
             ["themes"] = _themes,
             ["plugins"] = _pluginScripts,
             ["burnin"] = string.IsNullOrWhiteSpace(_cfg.Burnin) ? "always" : _cfg.Burnin,
+            ["cardconf"] = _scheduler.CardConf,
         };
         return JsonSerializer.Serialize(msg, ConfigJson.Web);
     }

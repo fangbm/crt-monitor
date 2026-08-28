@@ -1,6 +1,6 @@
 # CRT-Monitor
 
-复古 CRT 风格的副屏系统监控仪表盘。当前 v0.8：**托盘常驻**（CPU% 图标、配置导出/导入）、告警中心（横幅 + 气泡通知 + 持久化记录）、CPU 每核热力图、磁盘活动指示灯、3 日天气预报、今日流量累计、截图、屏保防灼屏、自由布局（拖拽移动/任意边角调整）、卡片管理器、多页面、主题目录化（11 套）、插件机制、24h 历史。免管理员安装。
+复古 CRT 风格的副屏系统监控仪表盘。当前 v0.9：托盘常驻、告警中心、每核热力图、磁盘指示灯、**正在播放媒体卡**、3 日预报、分网卡速率、今日流量、截图、屏保 + 防灼屏微抖、**远程多机监控**（--serve 模式）、**脚本文本数据源**、自由布局 + 卡片管理器、多页面、11 套主题、C#/JS 插件、24h/7d 历史、单实例守护。免管理员安装。
 
 ![preview](docs/preview.png)
 
@@ -37,9 +37,48 @@
 | `clock` | LIFE | 大号时钟 + 日期星期 |
 | `weather` | LIFE | 当前天气（Open-Meteo 免 key，ip 自动定位，15 分钟刷新） |
 | `weather3` | LIFE | 未来 3 天预报（高/低温 + 图标） |
-| `hist24` | HIST | 24 小时 CPU/MEM 分钟级曲线（history.json 持久化，重启不丢） |
-| `stats` | HIST | 24h 峰值/均值 + 今日上/下行流量累计 |
+| `hist24` | HIST | 历史曲线，头部按钮切 1H / 6H / 24H / 7D（7d 为 10 分钟降采样） |
+| `stats` | HIST | 峰值/均值 + 今日上/下行流量累计 |
+| `media` | LIFE | 正在播放：标题/艺术家/进度条（Windows 媒体会话） |
+| `netnic` | SYS | 分网卡速率（每行一块网卡） |
+| `scripts` | SYS | 脚本数据源输出（见下方"脚本文本源"） |
+| `remote` | SYS | 远程机器 CPU/内存（见下方"远程监控"） |
 | `battery` | LIFE | 电池（**示例插件**，由 plugins/ 加载，台式机显示 N/A） |
+
+## 远程多机监控
+
+被监控端（另一台 Windows 机器）运行：
+
+```powershell
+CrtMonitor.exe --serve
+# 数据暴露在 http://127.0.0.1:9123/metrics/（LAN 访问需防火墙放行 9123）
+```
+
+监控端副屏机器的 config.json：
+
+```json
+{ "remotes": [ { "name": "htpc", "url": "http://192.168.1.20:9123/metrics/" } ] }
+```
+
+`remote` 卡片显示各远程机 CPU/内存，断连 10 秒后显示 OFFLINE。
+
+## 脚本文本源
+
+把任意命令的输出变成仪表盘卡片（stdout 首行作为值）：
+
+```json
+{ "scripts": [
+  { "name": "tmp", "cmd": "powershell -c [int](Get-CimInstance Win32_VideoController).DriverVersion", "interval_sec": 30 }
+] }
+```
+
+## 卡片参数（cardconf）
+
+```json
+{ "cardconf": { "proc": { "count": 12 } } }
+```
+
+目前支持：`proc.count`（进程榜条数，默认 8）。
 
 ## 扩展机制
 

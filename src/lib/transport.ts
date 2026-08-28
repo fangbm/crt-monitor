@@ -51,6 +51,8 @@ export interface ShellConfig {
   plugins?: string[] | null;
   /** 防灼屏微抖模式：always（默认）/ idle / off */
   burnin?: string;
+  /** 卡片参数（键=卡片 id），如 {"proc":{"count":12}} */
+  cardconf?: Record<string, Record<string, unknown>> | null;
 }
 
 export interface AutostartNotice {
@@ -196,7 +198,10 @@ function startMock(cb: (m: MetricsTick) => void): () => void {
           { name: "Windows", mount: "C:", total_b: 1_000_204_886_016, available_b: 300_000_000_000, read_bps: 51_200_000, write_bps: 12_800_000 },
           { name: "Data", mount: "D:", total_b: 4_000_768_610_304, available_b: 2_100_000_000_000, read_bps: 1_024_000, write_bps: 204_800 },
         ],
-        net: { rx_bps: rx, tx_bps: tx },
+        net: { rx_bps: rx, tx_bps: tx, nics: [
+          { name: "Ethernet", rx_bps: rx, tx_bps: tx },
+          { name: "Wi-Fi", rx_bps: rx / 4, tx_bps: tx / 4 },
+        ] },
         proc: [
           { name: "chrome x4", cpu: 8.4, mem_b: 2_100_000_000 },
           { name: "Code x2", cpu: 5.1, mem_b: 1_400_000_000 },
@@ -212,6 +217,12 @@ function startMock(cb: (m: MetricsTick) => void): () => void {
         ] },
         battery: { present: true, charge_pct: 76, ac_power: true },
         alerts: [],
+        media: { title: "Retro Terminal Mix", artist: "Phosphor DJ", status: "playing", pos_sec: 83, dur_sec: 254 },
+        scripts: [{ name: "weather-cli", value: "28C sunny", age_ms: 4200 }],
+        remotes: [
+          { name: "htpc", cpu: 12, mem_pct: 46, mem_used: 6_400_000_000, mem_total: 16_000_000_000, rx_bps: 900_000, tx_bps: 120_000, age_ms: 800 },
+          { name: "nas", cpu: 3, mem_pct: 62, mem_used: 7_800_000_000, mem_total: 12_000_000_000, rx_bps: 2_400_000, tx_bps: 300_000, age_ms: 500 },
+        ],
       },
     });
   }, 1000);

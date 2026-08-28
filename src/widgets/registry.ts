@@ -29,6 +29,19 @@ export function registerWidget(def: WidgetDef): void {
   registerWidget: (def: WidgetDef) => registerWidget({ ...def, plugin: true }),
 };
 
+/* ---------- 卡片参数（config.json cardconf）---------- */
+
+let CARD_CONF: Record<string, Record<string, unknown>> = {};
+
+export function setCardConf(conf: Record<string, Record<string, unknown>> | null | undefined): void {
+  CARD_CONF = conf ?? {};
+}
+
+/** 卡片内读取自己的参数（带默认值），如 conf<{count:number}>("proc", {count:8}).count */
+export function conf<T extends object>(id: string, defaults: T): T {
+  return { ...defaults, ...(CARD_CONF[id] ?? {}) } as T;
+}
+
 export function registeredWidgets(): readonly WidgetDef[] {
   return defs;
 }

@@ -25,6 +25,28 @@ public sealed class Config
     public bool AlertSound { get; init; }
     /// <summary>防灼屏微抖：always（默认，整页每30秒±6px漂移）/ idle / off</summary>
     public string Burnin { get; init; } = "always";
+    /// <summary>卡片参数（键=卡片 id），如 {"proc":{"count":12},"net":{"nic":"eth0"}}</summary>
+    public Dictionary<string, Dictionary<string, object?>>? CardConf { get; init; }
+    /// <summary>脚本数据源：运行外部命令，stdout 首行显示为卡片</summary>
+    public List<ScriptConfig>? Scripts { get; init; }
+    /// <summary>远程机器数据源（对端跑 --serve）</summary>
+    public List<RemoteConfig>? Remotes { get; init; }
+}
+
+public sealed class ScriptConfig
+{
+    public string Name { get; init; } = "";
+    /// <summary>完整命令行（cmd /c 执行），stdout 首行作为值</summary>
+    public string Cmd { get; init; } = "";
+    /// <summary>执行间隔秒（默认 10）</summary>
+    public int IntervalSec { get; init; } = 10;
+}
+
+public sealed class RemoteConfig
+{
+    public string Name { get; init; } = "";
+    /// <summary>对端 --serve 地址，如 http://192.168.1.20:9123/metrics/</summary>
+    public string Url { get; init; } = "";
 }
 
 public sealed class AlertRule

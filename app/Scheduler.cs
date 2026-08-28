@@ -27,6 +27,9 @@ public sealed class Scheduler : IDisposable
             new NetCollector(),
             new ProcessCollector(),
             new WeatherCollector(cfg.Weather),
+            new MediaCollector(),
+            new ScriptCollector(cfg.Scripts),
+            new RemoteCollector(cfg.Remotes),
         };
         if (cfg.Lhm)
             _collectors.Add(new LhmCollector(enabled: true));
@@ -34,7 +37,11 @@ public sealed class Scheduler : IDisposable
             _collectors.AddRange(pluginCollectors);
 
         _alerts = new AlertEvaluator(cfg.Alerts, cfg.AlertSound, notify);
+        CardConf = cfg.CardConf;
     }
+
+    /// <summary>卡片参数（键=卡片 id），经 config 消息下发前端。</summary>
+    public Dictionary<string, Dictionary<string, object?>>? CardConf { get; }
 
     /// <summary>采集一轮并返回 JSON（null 表示本轮失败）。调用方决定推送到哪里。</summary>
     public string? CollectJson()
@@ -50,8 +57,9 @@ public sealed class Scheduler : IDisposable
             _tickCount++;
             return JsonSerializer.Serialize(tick, JsonOpts);
         }
-        catch
+        catch (Exception ex)
         {
+            Program.Log($"collect failed: {ex.Message}");
             return null;
         }
     }

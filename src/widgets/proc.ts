@@ -1,7 +1,7 @@
-import { el, fmtBytes, bar, registerWidget, type Widget } from "./registry";
+import { conf, el, fmtBytes, bar, registerWidget, type Widget } from "./registry";
 import type { MetricsTick, ProcReading } from "../lib/types";
 
-const TOP_N = 8;
+const TOP_N = conf<{ count: number }>("proc", { count: 8 }).count;
 
 interface Row {
   root: HTMLElement;

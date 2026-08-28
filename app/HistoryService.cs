@@ -9,6 +9,7 @@ public sealed class HistoryService : IDisposable
     private static readonly string DataPath = Path.Combine(AppContext.BaseDirectory, "history.json");
 
     private readonly Dictionary<long, HistoryPointDto> _minutes = new();
+    private readonly Dictionary<long, HistoryPointDto> _minutes10 = new();
     private Dictionary<string, double[]> _traffic = new(); // key: yyyy-MM-dd, value: [rx, tx]
     private DateTime _lastSaveUtc = DateTime.MinValue;
     private long _lastTs;
@@ -68,6 +69,23 @@ public sealed class HistoryService : IDisposable
             }
             _lastTs = tick.Ts;
 
+            // 10 分钟降采样（7 天，1008 点）：滑动平均
+            long key10 = tick.Ts / 600_000 * 600;
+            if (!_minutes10.TryGetValue(key10, out var p10))
+                _minutes10[key10] = p10 = new HistoryPointDto { T = key10 };
+            p10.CpuMax = Math.Max(p10.CpuMax, tick.Metrics.Cpu.Usage);
+            p10.Cpu = p10.Cpu <= 0 && p10.Mem <= 0 && p10.Rx <= 0 && p10.Tx <= 0
+                ? tick.Metrics.Cpu.Usage : (p10.Cpu + tick.Metrics.Cpu.Usage) / 2;
+            p10.Mem = p10.Mem <= 0 ? memPct : (p10.Mem + memPct) / 2;
+            p10.Rx = Math.Max(p10.Rx, tick.Metrics.Net.RxBps);
+            p10.Tx = Math.Max(p10.Tx, tick.Metrics.Net.TxBps);
+            if (_minutes10.Count > 7 * 144)
+            {
+                var cutoff10 = key10 - 7L * 144 * 600;
+                foreach (var k in _minutes10.Keys.Where(k => k < cutoff10).ToList())
+                    _minutes10.Remove(k);
+            }
+
             if (DateTime.UtcNow - _lastSaveUtc > TimeSpan.FromMinutes(5))
             {
                 _lastSaveUtc = DateTime.UtcNow;
@@ -103,6 +121,7 @@ public sealed class HistoryService : IDisposable
                 dto.Stats.TodayTx = Math.Round(todayTraffic[1]);
             }
             dto.Points = points;
+            dto.Points10m = _minutes10.Values.OrderBy(p => p.T).ToList();
             return dto;
         }
     }
@@ -125,6 +144,12 @@ public sealed class HistoryService : IDisposable
             {
                 _traffic = JsonSerializer.Deserialize<Dictionary<string, double[]>>(tf.GetRawText(), ConfigJson.Web) ?? new();
             }
+            if (root.TryGetProperty("points10m", out var p10el))
+            {
+                var list10 = JsonSerializer.Deserialize<List<HistoryPointDto>>(p10el.GetRawText(), ConfigJson.Web) ?? new();
+                foreach (var p in list10)
+                    _minutes10[p.T] = p;
+            }
             Program.Log($"history loaded: {_minutes.Count} minutes");
         }
         catch (Exception ex)
@@ -140,6 +165,7 @@ public sealed class HistoryService : IDisposable
             var payload = new Dictionary<string, object?>
             {
                 ["points"] = Snapshot().Points,
+                ["points10m"] = Snapshot().Points10m,
                 ["traffic"] = _traffic,
             };
             File.WriteAllText(DataPath, JsonSerializer.Serialize(payload, ConfigJson.Web));

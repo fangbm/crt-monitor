@@ -18,7 +18,35 @@ export interface MetricsTick {
     alerts: string[];
     /** 最近告警记录（新→旧，最多 30 条；仅在有新告警的 tick 携带） */
     alert_history?: AlertEntry[];
+    media: MediaReading | null;
+    scripts: ScriptReading[];
+    remotes: RemoteReading[];
   };
+}
+
+export interface MediaReading {
+  title: string;
+  artist: string;
+  status: string;
+  pos_sec: number;
+  dur_sec: number;
+}
+
+export interface ScriptReading {
+  name: string;
+  value: string;
+  age_ms: number;
+}
+
+export interface RemoteReading {
+  name: string;
+  cpu: number;
+  mem_pct: number;
+  mem_used: number;
+  mem_total: number;
+  rx_bps: number;
+  tx_bps: number;
+  age_ms: number;
 }
 
 export interface BatteryReading {
@@ -50,6 +78,8 @@ export interface HistoryStats {
 export interface HistoryMsg {
   type: "history";
   points: HistoryPoint[];
+  /** 7 天降采样（10 分钟粒度） */
+  points10m?: HistoryPoint[];
   stats: HistoryStats;
 }
 
@@ -121,6 +151,13 @@ export interface DiskReading {
 }
 
 export interface NetReading {
+  rx_bps: number;
+  tx_bps: number;
+  nics: NicReading[];
+}
+
+export interface NicReading {
+  name: string;
   rx_bps: number;
   tx_bps: number;
 }
