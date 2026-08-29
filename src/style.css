@@ -1017,9 +1017,6 @@ body.edit button {
     width: 3em;
   }
 
-  .hm-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
 
   .w-proc .w-label {
     max-width: 10em;
@@ -1046,9 +1043,6 @@ body.edit button {
     grid-template-columns: 1fr auto;
   }
 
-  .hm-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
 
   .w-weather-detail,
   .md-bar,
@@ -1077,13 +1071,9 @@ body.edit button {
   }
 }
 
-/* ---------- 热力图列数阶梯：宽卡单排放下全部核心 ---------- */
+/* ---------- 热力图列数由 JS 按卡片宽高比求解（见 heatmap.ts） ---------- */
 
 @container widget (width >= 560px) {
-  .hm-grid {
-    grid-template-columns: repeat(12, 1fr);
-  }
-
   .w-proc .w-label {
     max-width: 34em;
   }

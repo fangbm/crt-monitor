@@ -73,7 +73,6 @@ public sealed class AudioSpectrum : IDisposable
         int n = _fftBuffer.Length;
         int srcCount = snapshot.Length / 2; // 立体声交错 → 单声道点数
         int start = Math.Max(0, srcCount - n);
-        int prev = 0;
         for (int i = 0; i < n; i++)
         {
             int idx = (start + i) * 2;
@@ -82,7 +81,6 @@ public sealed class AudioSpectrum : IDisposable
             double window = 0.5 * (1 - Math.Cos(2 * Math.PI * i / (n - 1)));
             _fftBuffer[i].X = (float)(s * window);
             _fftBuffer[i].Y = 0;
-            prev = s.GetHashCode();
         }
 
         // m = log2(n)：2048 → 11
