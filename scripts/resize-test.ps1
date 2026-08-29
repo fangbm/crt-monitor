@@ -1,7 +1,9 @@
 param(
   [int]$W = 900,
   [int]$H = 560,
-  [string]$Out = "C:\Users\fangb\Documents\zcode\crt\t2.png"
+  [int]$X = 0,
+  [int]$Y = 0,
+  [string]$Out = "C:\Users\fangb\Documents\zcode\crt\resize.png"
 )
 
 Add-Type @"
@@ -33,7 +35,7 @@ if (-not $proc) { Write-Output "WINDOW_NOT_FOUND"; exit 1 }
 $h = [Win32Resizer]::FindByPid([uint32]$proc.Id)
 if ($h -eq [IntPtr]::Zero) { Write-Output "WINDOW_NOT_FOUND"; exit 1 }
 
-$ok = [Win32Resizer]::SetWindowPos($h, [IntPtr]::Zero, 80, 80, $W, $H, 0x0040)
+$ok = [Win32Resizer]::SetWindowPos($h, [IntPtr]::Zero, $X, $Y, $W, $H, 0x0040)
 Write-Output "RESIZED=$ok"
 
 Start-Sleep -Seconds 2
