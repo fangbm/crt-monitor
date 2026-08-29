@@ -59,7 +59,8 @@ registerWidget({
           const row = ensureRow(i);
           row.label.dataset.name = p.name.replace(/ x\d+$/, ""); // 剥合并后缀，杀同名全部
           if (!row.root.classList.contains("confirm") && row.label.textContent !== "KILLING…") {
-            row.label.textContent = p.name.length > 16 ? p.name.slice(0, 15) + "…" : p.name;
+            // 不在 JS 里截断：宽卡显示全名，窄卡由 CSS 省略号接管
+            row.label.textContent = p.name;
             row.bar.textContent = bar(p.cpu / 100);
             row.val.textContent = `${p.cpu.toFixed(1)}%  ${fmtBytes(p.mem_b, 1)}`;
           }

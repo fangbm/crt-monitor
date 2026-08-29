@@ -597,22 +597,22 @@ body.edit button {
   min-height: 0;
 }
 
-/* CPU 每核热力图 */
+/* CPU 每核热力图：列数随容器宽度阶梯自适应（见文件末尾 @container 段） */
 .hm-grid {
   flex: 1;
   display: grid;
   grid-template-columns: repeat(6, 1fr);
+  grid-auto-rows: 1fr;
   gap: 4px;
-  align-content: space-evenly;
+  min-height: 0;
 }
 
 .hm-cell {
-  aspect-ratio: 1;
-  max-height: 100%;
   border: 1px solid var(--phos-dim);
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 18px;
   transition: background 0.4s;
 }
 
@@ -927,6 +927,13 @@ body.edit button {
   font-size: clamp(9px, 7cqw, 15px);
 }
 
+/* 进程名：CSS 省略号接管截断（宽卡全名，窄卡 …） */
+.widget .w-proc .w-label {
+  max-width: 22em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .widget .w-big {
   font-size: clamp(15px, 17cqw, 46px);
 }
@@ -1014,6 +1021,10 @@ body.edit button {
     grid-template-columns: repeat(4, 1fr);
   }
 
+  .w-proc .w-label {
+    max-width: 10em;
+  }
+
   .w-proc .w-bar {
     display: none;
   }
@@ -1066,6 +1077,18 @@ body.edit button {
   }
 }
 
+/* ---------- 热力图列数阶梯：宽卡单排放下全部核心 ---------- */
+
+@container widget (width >= 560px) {
+  .hm-grid {
+    grid-template-columns: repeat(12, 1fr);
+  }
+
+  .w-proc .w-label {
+    max-width: 34em;
+  }
+}
+
 /* ---------- 大卡（≥700px 宽且 ≥420px 高）：放大主视觉 ---------- */
 
 @container widget (width >= 700px) and (height >= 420px) {
@@ -1080,10 +1103,6 @@ body.edit button {
   .w-weather-icon,
   .w-weather-temp {
     font-size: clamp(30px, 10cqw, 96px);
-  }
-
-  .hm-grid {
-    grid-template-columns: repeat(8, 1fr);
   }
 
   .widget {
