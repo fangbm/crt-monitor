@@ -32,7 +32,7 @@
 | `disk` | SYS | 各盘容量条 + 读写速率（WMI，不可用时显示 —） |
 | `leds` | SYS | 磁盘活动指示灯（R/W 两颗，IO 时点亮） |
 | `net` | SYS | 上下行双曲线 + 实时速率 |
-| `proc` | SYS | 进程 Top 8（CPU 排序，同名合并，如 `chrome x4`） |
+| `proc` | SYS | 进程 Top 8（CPU 排序，同名合并，如 `chrome x4`）。**编辑模式下点两下行 = 结束该进程**（系统关键进程受保护） |
 | `sensors` | SYS | CPU/GPU 温度 + GPU 负载（LibreHardwareMonitor，需提权） |
 | `alertlog` | SYS | 告警记录中心（最近 30 条，持久化；触发时另有气泡通知） |
 | `clock` | LIFE | 大号时钟 + 日期星期 |
@@ -46,6 +46,7 @@
 | `events` | HIST | 系统事件卡（最近 24h 错误/警告） |
 | `gpu` | SYS | GPU 负载/温度/显存（需 LHM 提权） |
 | `boot` | LIFE | 本次开机时间 / 上次关机时间 / 运行时长 |
+| `spectrum` | LIFE | **音频频谱**（24 频段 + 峰值帽，config `"spectrum": true` 启用） |
 | `scripts` | SYS | 脚本数据源输出（见下方"脚本文本源"） |
 | `remote` | SYS | 远程机器 CPU/内存（见下方"远程监控"） |
 | `battery` | LIFE | 电池（**示例插件**，由 plugins/ 加载，台式机显示 N/A） |
@@ -107,6 +108,14 @@ CrtMonitor.exe --serve
 ```
 
 目前支持：`proc.count`（进程榜条数，默认 8）。
+
+## 音频频谱
+
+config.json 加 `"spectrum": true` 启用（WASAPI loopback 采集系统输出，15Hz FFT，少量 CPU）。卡片管理器开启 `SPECTRUM` 卡即可随音乐起舞；无声音时自动衰减归零。
+
+## 进程管理
+
+编辑模式（E）下进程卡每行可点：**第一下变红确认（3 秒超时取消），第二下结束该名称的全部进程**。受保护名单：system/csrss/winlogon/lsass/svchost/explorer/dwm 等及监控自身，拒绝并提示 PROTECTED。结果经托盘式提示条回显（KILLED x N / NOT FOUND）。
 
 ## 扩展机制
 

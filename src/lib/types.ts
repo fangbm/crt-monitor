@@ -24,6 +24,7 @@ export interface MetricsTick {
     pings: PingReading[];
     events: EventReading[];
     boot: BootReading | null;
+    spectrum: number[];
   };
 }
 

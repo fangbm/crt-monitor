@@ -39,6 +39,8 @@ public sealed class MetricsDto
     [JsonPropertyName("pings")] public List<PingDto> Pings { get; set; } = new();
     [JsonPropertyName("events")] public List<EventDto> Events { get; set; } = new();
     [JsonPropertyName("boot")] public BootDto? Boot { get; set; }
+    /// <summary>音频频谱（24 频段 0-1；spectrum 未启用时为空）</summary>
+    [JsonPropertyName("spectrum")] public List<double> Spectrum { get; set; } = new();
 }
 
 public sealed class PingDto

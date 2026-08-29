@@ -26,6 +26,7 @@ import "./widgets/ping";
 import "./widgets/events";
 import "./widgets/gpu";
 import "./widgets/boot";
+import "./widgets/spectrum";
 
 const LOGO = String.raw`  ____ ____  ____    ____
  / ___/ ___||  _ \  |  _ \ ___  __ _ _   _  ___
@@ -33,7 +34,6 @@ const LOGO = String.raw`  ____ ____  ____    ____
 | |___ ___) |  _ <  |  _ <  __/ (_| | |_| |  __/
  \____|____/|_| \_\ |_| \_\___|\__, |\__,_|\___/
                                 |_|  MONITOR v1.0`;
-
 const BOOT_LINES = [
   "CRT-MONITOR BIOS v1.0  (c) 2026",
   "MEMORY TEST ................ OK",

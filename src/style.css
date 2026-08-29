@@ -578,6 +578,23 @@ body.edit button {
   color: var(--phos-bright);
 }
 
+.w-proc .w-row.confirm {
+  cursor: pointer;
+}
+
+.w-proc .w-row.confirm .w-label,
+.w-proc .w-row.confirm .w-val {
+  color: #ff5a4d;
+  text-shadow: 0 0 8px #ff2b1a;
+}
+
+/* 音频频谱 */
+.sp-canvas {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+}
+
 /* CPU 每核热力图 */
 .hm-grid {
   flex: 1;

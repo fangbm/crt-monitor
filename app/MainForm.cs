@@ -142,6 +142,58 @@ public sealed class MainForm : Form
         }
     }
 
+    /// <summary>保护名单：杀掉会蓝屏/失去桌面的系统进程，监控自身也不许。</summary>
+    private static readonly HashSet<string> ProtectedProcs = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "system", "idle", "csrss", "smss", "wininit", "winlogon", "services", "lsass",
+        "svchost", "explorer", "dwm", "fontdrvhost", "crtmonitor",
+    };
+
+    private void KillProcess(string rawName)
+    {
+        // 前端传的是展示名（可能带 " x3" 合并后缀）
+        string name = rawName.Split(" x")[0].Trim();
+        void Reply(string text) => _web.CoreWebView2?.PostWebMessageAsJson(
+            JsonSerializer.Serialize(new Dictionary<string, object?> { ["type"] = "notice", ["text"] = text }, ConfigJson.Web));
+
+        if (ProtectedProcs.Contains(name))
+        {
+            Program.Log($"kill denied (protected): {name}");
+            Reply($"⛔ {name.ToUpper()} PROTECTED");
+            return;
+        }
+        try
+        {
+            var procs = System.Diagnostics.Process.GetProcessesByName(name);
+            if (procs.Length == 0)
+            {
+                Reply($"{name.ToUpper()} NOT FOUND");
+                return;
+            }
+            int killed = 0;
+            foreach (var p in procs)
+            {
+                try
+                {
+                    p.Kill(entireProcessTree: true);
+                    killed++;
+                }
+                catch { /* 已退出/无权限 */ }
+                finally
+                {
+                    p.Dispose();
+                }
+            }
+            Program.Log($"kill {name}: {killed}/{procs.Length}");
+            Reply($"KILLED {name.ToUpper()} x{killed}");
+        }
+        catch (Exception ex)
+        {
+            Program.Log($"kill {name} failed: {ex.Message}");
+            Reply($"KILL FAILED: {name.ToUpper()}");
+        }
+    }
+
     /// <summary>布局预设切换：写回 profile 字段，重载配置后重发 config（前端换页组）。</summary>
     private void SwitchProfile()
     {
@@ -338,6 +390,13 @@ public sealed class MainForm : Form
                         && volEl.TryGetInt32(out int vol))
                     {
                         AudioVolume.Set(vol);
+                    }
+                    break;
+                case "kill-proc":
+                    if (doc.RootElement.TryGetProperty("value", out var procEl)
+                        && procEl.ValueKind == JsonValueKind.String)
+                    {
+                        KillProcess(procEl.GetString() ?? "");
                     }
                     break;
                 case "switch-profile":

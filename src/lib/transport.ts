@@ -236,6 +236,7 @@ function startMock(cb: (m: MetricsTick) => void): () => void {
           { ts: Date.now() - 900_000, level: "warn", source: "Disk", msg: "SMART predictive failure" },
         ],
         boot: { booted_at: Math.floor(Date.now() / 1000) - 3600 * 72, last_shutdown: Math.floor(Date.now() / 1000) - 3600 * 76 },
+        spectrum: Array.from({ length: 24 }, (_, i) => Math.max(0, Math.sin(i / 3) * 0.5 + Math.random() * 0.3)),
       },
     });
   }, 1000);

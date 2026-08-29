@@ -11,6 +11,7 @@ public sealed class Scheduler : IDisposable
     private readonly List<ICollector> _collectors;
     private readonly AlertEvaluator _alerts;
     private readonly HistoryService _history = new();
+    private readonly SpectrumCollector? _spectrum;
     private int _tickCount;
 
     /// <summary>最近一轮的 CPU 总占用（托盘图标用）。</summary>
@@ -35,6 +36,11 @@ public sealed class Scheduler : IDisposable
         };
         if (cfg.Lhm)
             _collectors.Add(new LhmCollector(enabled: true));
+        if (cfg.Spectrum)
+        {
+            _spectrum = new SpectrumCollector(enabled: true);
+            _collectors.Add(_spectrum);
+        }
         if (pluginCollectors is { Count: > 0 })
             _collectors.AddRange(pluginCollectors);
 
@@ -75,5 +81,9 @@ public sealed class Scheduler : IDisposable
         catch { return null; }
     }
 
-    public void Dispose() => _history.Dispose();
+    public void Dispose()
+    {
+        _spectrum?.Dispose();
+        _history.Dispose();
+    }
 }

@@ -37,6 +37,8 @@ public sealed class Config
     public List<ProfileConfig>? Profiles { get; init; }
     /// <summary>当前布局预设名（切换时写回）</summary>
     public string? Profile { get; init; }
+    /// <summary>启用音频频谱卡（WASAPI loopback 采集，少量 CPU）</summary>
+    public bool Spectrum { get; init; }
 }
 
 public sealed class PingConfig
