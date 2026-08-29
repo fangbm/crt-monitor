@@ -11,21 +11,9 @@ public sealed class LhmCollector : ICollector, IDisposable
     public LhmCollector(bool enabled)
     {
         if (!enabled) return;
-        // Open() 可能耗时 1-3s（枚举 SMBus/显卡），放后台线程避免卡首个 tick
-        Task.Run(() =>
-        {
-            try
-            {
-                var computer = new Computer { IsCpuEnabled = true, IsGpuEnabled = true };
-                computer.Open();
-                _computer = computer;
-                Program.Log("LHM opened");
-            }
-            catch (Exception ex)
-            {
-                Program.Log($"LHM open failed: {ex.Message}");
-            }
-        });
+        // Open() 可能耗时 1-3s（枚举 SMBus/存储），放后台线程避免卡首个 tick
+        Program.Log("LHM init v2");
+        Start();
     }
 
     private void Start()
@@ -42,6 +30,9 @@ public sealed class LhmCollector : ICollector, IDisposable
                 };
                 computer.Open();
                 _computer = computer;
+                // 一次性枚举：诊断存储/GPU 是否被 LHM 识别
+                foreach (var hw in computer.Hardware)
+                    Program.Log($"LHM hw: {hw.HardwareType} '{hw.Name}' sensors={hw.Sensors.Length} subs={hw.SubHardware.Length}");
                 Program.Log("LHM opened");
             }
             catch (Exception ex)
@@ -92,24 +83,35 @@ public sealed class LhmCollector : ICollector, IDisposable
 
                     if (isCpu)
                     {
-                        // 每核温度（供热力图温度模式）
-                        var coreTemps = sensors
-                            .Where(x => x.SensorType == SensorType.Temperature && x.Name.StartsWith("Core"))
+                        // CPU 包温度：Intel 叫 Package；AMD 只有一个 "Core (Tctl/Tdie)"。
+                        // 都没匹配到时兜底取 CPU 上任意温度传感器。0°C 是无效读数（部分
+                        // AMD 移动版经 WinRing0 读出恒 0），按无数据处理。
+                        var temps = sensors.Where(x => x.SensorType == SensorType.Temperature && x.Value is > 0).ToList();
+                        var pkg = temps.FirstOrDefault(x => x.Name.Contains("Package"))
+                               ?? temps.FirstOrDefault(x => x.Name.Contains("Tctl"))
+                               ?? temps.FirstOrDefault();
+                        if (pkg?.Value is { } cpuT)
+                            dto.CpuTemp = Math.Round(cpuT, 0);
+
+                        // 每核温度：Intel 有逐核；AMD 只有单一 Tctl → 复制到全部核（热力图温度模式可用）
+                        var coreTemps = temps
+                            .Where(x => x.Name.StartsWith("Core #"))
                             .OrderBy(x => x.Name, StringComparer.CurrentCulture)
                             .Select(x => Math.Round(x.Value ?? 0, 0))
                             .ToList();
-                        if (coreTemps.Count > 0) tick.Metrics.Cpu.CoresTemp = coreTemps;
+                        if (coreTemps.Count == 0 && pkg?.Value is { } t)
+                            coreTemps = Enumerable.Repeat(Math.Round(t, 0), tick.Host.CoreCount).ToList();
+                        if (coreTemps.Count > 0)
+                            tick.Metrics.Cpu.CoresTemp = coreTemps;
                     }
 
                     foreach (var sensor in sensors)
                     {
                         if (sensor.Value is not { } value) continue;
-                        if (isCpu && sensor.SensorType == SensorType.Temperature
-                                 && (sensor.Name.Contains("Package") || sensor.Name.Contains("Tctl")))
-                            dto.CpuTemp ??= Math.Round(value, 0);
-                        if (isGpu && sensor.SensorType == SensorType.Temperature && sensor.Name.Contains("Core"))
+                        if (isGpu && sensor.SensorType == SensorType.Temperature)
                             dto.GpuTemp ??= Math.Round(value, 0);
-                        if (isGpu && sensor.SensorType == SensorType.Load && sensor.Name.Contains("Core"))
+                        if (isGpu && sensor.SensorType == SensorType.Load
+                                 && (sensor.Name.Contains("Core") || sensor.Name.Equals("GPU Load", StringComparison.OrdinalIgnoreCase)))
                             dto.GpuLoad ??= Math.Round(value, 0);
                         if (isGpu && (sensor.SensorType == SensorType.SmallData || sensor.SensorType == SensorType.Data))
                         {

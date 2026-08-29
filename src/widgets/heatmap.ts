@@ -63,11 +63,11 @@ registerWidget({
       new ResizeObserver(relayout).observe(grid);
     }
 
-    // 温度模式开关：非编辑模式下点击卡片切换（需有每核温度数据）
+    // 温度模式开关：非编辑模式下点击卡片切换（需有每核温度数据；全 0 视为传感器无效）
     grid.addEventListener("click", () => {
       if (document.body.classList.contains("edit")) return;
       const temps = lastTick?.metrics.cpu.cores_temp;
-      if (!temps || temps.length === 0) return;
+      if (!temps || temps.length === 0 || !temps.some((t) => t > 0)) return;
       mode = mode === "usage" ? "temp" : "usage";
       head.textContent = mode === "temp" ? "CPU CORES · TEMP" : "CPU CORES";
       if (lastTick) apply(lastTick);
@@ -90,7 +90,7 @@ registerWidget({
         }
         relayout();
       }
-      const tempMode = mode === "temp" && temps && temps.length === cores.length;
+      const tempMode = mode === "temp" && temps && temps.length === cores.length && temps.some((t) => t > 0);
       cores.forEach((v, i) => {
         const num = cells[i].firstElementChild as HTMLElement;
         if (tempMode) {

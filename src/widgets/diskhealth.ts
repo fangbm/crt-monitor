@@ -36,7 +36,7 @@ registerWidget({
         lastKey = key;
 
         if (items.length === 0) {
-          head.textContent = "DISK HEALTH · 需提权 (lhm)";
+          head.textContent = "DISK HEALTH · NO STORAGE DATA";
           list.textContent = "";
           return;
         }
