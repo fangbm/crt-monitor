@@ -753,3 +753,149 @@ body.edit button {
   border-color: var(--phos);
 }
 
+/* Ping 卡 */
+.pg-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.pg-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 0;
+}
+
+.pg-label {
+  width: 9.5em;
+  font-size: clamp(10px, 1.4vh, 14px);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.pg-label b {
+  color: var(--phos-bright);
+  font-variant-numeric: tabular-nums;
+}
+
+.pg-lost {
+  color: #ff5a4d;
+}
+
+.pg-canvas {
+  flex: 1;
+  height: 100%;
+  min-width: 0;
+}
+
+/* 事件卡 */
+.ev-list {
+  gap: 3px;
+}
+
+.ev-row {
+  grid-template-columns: auto 1fr;
+}
+
+.ev-msg {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--phos);
+}
+
+.ev-row.err .ev-msg {
+  color: #ff8a80;
+}
+
+.ev-row.err .w-label {
+  color: #ff5a4d;
+}
+
+/* GPU 卡 */
+.gpu-rows .w-label {
+  color: var(--phos-dim);
+}
+
+/* 主题编辑器 */
+.te-form {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.te-label {
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--phos-dim);
+}
+
+.te-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.te-name,
+.te-color {
+  font-family: var(--font-mono);
+  background: var(--phos-faint);
+  border: 1px solid var(--phos-dim);
+  color: var(--phos-bright);
+  padding: 3px 6px;
+  font-size: 12px;
+}
+
+.te-name {
+  width: 100%;
+}
+
+.te-color {
+  width: 46px;
+  height: 26px;
+  padding: 2px;
+  cursor: pointer;
+}
+
+.te-save,
+.te-cancel {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 2px;
+  padding: 5px 0;
+  cursor: pointer;
+  border: 1px solid var(--phos-dim);
+  background: none;
+  color: var(--phos-bright);
+}
+
+.te-save {
+  background: var(--phos);
+  color: var(--bg);
+  border-color: var(--phos);
+  font-weight: bold;
+}
+
+.cm-edit {
+  font-family: var(--font-mono);
+  background: none;
+  border: none;
+  color: var(--phos);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+/* 媒体卡音量 */
+.md-vol {
+  color: var(--phos-dim);
+  font-size: clamp(10px, 1.4vh, 13px);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+

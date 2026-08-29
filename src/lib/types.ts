@@ -21,7 +21,29 @@ export interface MetricsTick {
     media: MediaReading | null;
     scripts: ScriptReading[];
     remotes: RemoteReading[];
+    pings: PingReading[];
+    events: EventReading[];
+    boot: BootReading | null;
   };
+}
+
+export interface PingReading {
+  name: string;
+  ms: number;
+  lost_pct: number;
+  series: number[];
+}
+
+export interface EventReading {
+  ts: number;
+  level: string;
+  source: string;
+  msg: string;
+}
+
+export interface BootReading {
+  booted_at: number;
+  last_shutdown: number;
 }
 
 export interface MediaReading {
@@ -30,6 +52,8 @@ export interface MediaReading {
   status: string;
   pos_sec: number;
   dur_sec: number;
+  volume: number;
+  muted: boolean;
 }
 
 export interface ScriptReading {
@@ -88,6 +112,8 @@ export interface SensorsReading {
   gpu_temp: number | null;
   gpu_load: number | null;
   gpu_name: string;
+  gpu_mem_used_mb: number | null;
+  gpu_mem_total_mb: number | null;
 }
 
 export interface WeatherReading {

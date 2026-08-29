@@ -31,6 +31,25 @@ public sealed class Config
     public List<ScriptConfig>? Scripts { get; init; }
     /// <summary>远程机器数据源（对端跑 --serve）</summary>
     public List<RemoteConfig>? Remotes { get; init; }
+    /// <summary>Ping 目标：延迟/丢包卡</summary>
+    public List<PingConfig>? Pings { get; init; }
+    /// <summary>布局预设：整组 pages 方案，P 键循环切换</summary>
+    public List<ProfileConfig>? Profiles { get; init; }
+    /// <summary>当前布局预设名（切换时写回）</summary>
+    public string? Profile { get; init; }
+}
+
+public sealed class PingConfig
+{
+    public string Name { get; init; } = "";
+    public string Host { get; init; } = "";
+    public int IntervalSec { get; init; } = 2;
+}
+
+public sealed class ProfileConfig
+{
+    public string Name { get; init; } = "";
+    public List<PageConfig> Pages { get; init; } = new();
 }
 
 public sealed class ScriptConfig

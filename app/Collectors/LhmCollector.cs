@@ -55,6 +55,11 @@ public sealed class LhmCollector : ICollector, IDisposable
                             dto.GpuTemp ??= Math.Round(value, 0);
                         if (isGpu && sensor.SensorType == SensorType.Load && sensor.Name.Contains("Core"))
                             dto.GpuLoad ??= Math.Round(value, 0);
+                        if (isGpu && (sensor.SensorType == SensorType.SmallData || sensor.SensorType == SensorType.Data))
+                        {
+                            if (sensor.Name.Contains("Used")) dto.GpuMemUsedMb ??= Math.Round(value, 0);
+                            if (sensor.Name.Contains("Total")) dto.GpuMemTotalMb ??= Math.Round(value, 0);
+                        }
                     }
                 }
             }

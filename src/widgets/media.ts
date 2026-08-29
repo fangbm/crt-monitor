@@ -1,4 +1,5 @@
 import { el, registerWidget, type Widget } from "./registry";
+import { postCommand } from "../lib/transport";
 import type { MetricsTick } from "../lib/types";
 
 const STATE_CN: Record<string, string> = {
@@ -7,7 +8,7 @@ const STATE_CN: Record<string, string> = {
   stopped: "■ STOPPED",
 };
 
-/** 正在播放：Windows 媒体会话（标题/艺术家/进度）。 */
+/** 正在播放：Windows 媒体会话（标题/艺术家/进度）。滚轮调系统音量。 */
 registerWidget({
   id: "media",
   title: "MEDIA",
@@ -18,11 +19,27 @@ registerWidget({
     const artist = el("div", "md-artist", "");
     const bar = el("div", "md-bar");
     const time = el("div", "md-time", "");
-    host.append(title, artist, bar, time);
+    const vol = el("div", "md-vol");
+    host.append(title, artist, bar, time, vol);
+
+    // 滚轮 ±5 音量（节流 150ms）
+    let lastVol = 0;
+    let lastAt = 0;
+    host.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      const now = Date.now();
+      if (now - lastAt < 150) return;
+      lastAt = now;
+      const target = Math.max(0, Math.min(100, lastVol + (e.deltaY < 0 ? 5 : -5)));
+      postCommand("set-volume", target);
+    }, { passive: false });
 
     return {
       update(m: MetricsTick) {
         const md = m.metrics.media;
+        lastVol = md?.volume ?? 0;
+        const volText = `VOL ${md?.muted ? "MUTE" : (md?.volume ?? 0) + "%"}`;
+        if (vol.textContent !== volText) vol.textContent = volText;
         if (!md || !md.title) {
           title.textContent = "NOTHING";
           artist.textContent = "";

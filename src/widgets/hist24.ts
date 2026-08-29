@@ -60,18 +60,42 @@ function draw(canvas: HTMLCanvasElement, points: HistoryPoint[], spanSec: number
   const x = (t: number) => ((t - t0) / (t1 - t0)) * w;
   const y = (v: number) => h - Math.min(1, Math.max(0, v / 100)) * (h - 14) - 2;
 
-  const line = (get: (p: HistoryPoint) => number, color: string, width: number, glow: boolean) => {
+  const line = (get: (p: HistoryPoint) => number, color: string, width: number, glow: boolean, dash = false) => {
     ctx.beginPath();
     src.forEach((p, i) => (i === 0 ? ctx.moveTo(x(p.t), y(get(p))) : ctx.lineTo(x(p.t), y(get(p)))));
     ctx.strokeStyle = color;
     ctx.lineWidth = width * dpr;
+    if (dash) ctx.setLineDash([4 * dpr, 4 * dpr]);
     if (glow) {
       ctx.shadowColor = phos;
       ctx.shadowBlur = 6 * dpr;
     }
     ctx.stroke();
+    ctx.setLineDash([]);
     ctx.shadowBlur = 0;
   };
+
+  // 昨日同时段对比（虚线，10 分钟粒度）
+  const all = getHistory();
+  if (all?.points10m && all.points10m.length > 2 && spanSec <= 86400) {
+    const t0abs = t0;
+    const t1abs = t1;
+    const shift = 86400;
+    const past = all.points10m.filter((p) => p.t >= t0abs - shift && p.t <= t1abs - shift);
+    if (past.length > 2) {
+      ctx.beginPath();
+      past.forEach((p, i) => {
+        const px = x(p.t + shift);
+        const py = y(p.cpu);
+        i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+      });
+      ctx.strokeStyle = dim;
+      ctx.lineWidth = 1 * dpr;
+      ctx.setLineDash([3 * dpr, 5 * dpr]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
 
   line((p) => p.cpu_max, dim, 1, false);
   line((p) => p.mem, dim, 1.5, false);
@@ -103,7 +127,7 @@ registerWidget({
     const range = el("span", "hg-range");
     head.append(label, range);
     host.append(head);
-    const legend = el("div", "w-legend", "CPU AVG(亮) / CPU MAX / MEM");
+    const legend = el("div", "w-legend", "CPU AVG(亮) / CPU MAX / MEM / 昨日(虚线)");
     host.append(legend);
     const canvas = el("canvas", "w-canvas");
     host.append(canvas);

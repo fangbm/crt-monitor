@@ -30,6 +30,8 @@ public sealed class Scheduler : IDisposable
             new MediaCollector(),
             new ScriptCollector(cfg.Scripts),
             new RemoteCollector(cfg.Remotes),
+            new PingCollector(cfg.Pings),
+            new EventsCollector(),
         };
         if (cfg.Lhm)
             _collectors.Add(new LhmCollector(enabled: true));

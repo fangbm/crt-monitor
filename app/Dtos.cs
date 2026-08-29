@@ -36,6 +36,37 @@ public sealed class MetricsDto
     [JsonPropertyName("media")] public MediaDto? Media { get; set; }
     [JsonPropertyName("scripts")] public List<ScriptDto> Scripts { get; set; } = new();
     [JsonPropertyName("remotes")] public List<RemoteDto> Remotes { get; set; } = new();
+    [JsonPropertyName("pings")] public List<PingDto> Pings { get; set; } = new();
+    [JsonPropertyName("events")] public List<EventDto> Events { get; set; } = new();
+    [JsonPropertyName("boot")] public BootDto? Boot { get; set; }
+}
+
+public sealed class PingDto
+{
+    [JsonPropertyName("name")] public string Name { get; set; } = "";
+    /// <summary>最近一次延迟 ms；-1 = 丢包</summary>
+    [JsonPropertyName("ms")] public double Ms { get; set; }
+    /// <summary>最近 30 次丢包率 0-100</summary>
+    [JsonPropertyName("lost_pct")] public double LostPct { get; set; }
+    /// <summary>最近 60 次延迟序列（-1 = 丢包）</summary>
+    [JsonPropertyName("series")] public List<double> Series { get; set; } = new();
+}
+
+public sealed class EventDto
+{
+    [JsonPropertyName("ts")] public long Ts { get; set; }
+    /// <summary>err / warn</summary>
+    [JsonPropertyName("level")] public string Level { get; set; } = "";
+    [JsonPropertyName("source")] public string Source { get; set; } = "";
+    [JsonPropertyName("msg")] public string Msg { get; set; } = "";
+}
+
+public sealed class BootDto
+{
+    /// <summary>本次开机时间（unix 秒）</summary>
+    [JsonPropertyName("booted_at")] public long BootedAt { get; set; }
+    /// <summary>上次正常关机时间（unix 秒，0 = 未知）</summary>
+    [JsonPropertyName("last_shutdown")] public long LastShutdown { get; set; }
 }
 
 public sealed class AlertEntryDto
@@ -52,6 +83,9 @@ public sealed class MediaDto
     [JsonPropertyName("status")] public string Status { get; set; } = "";
     [JsonPropertyName("pos_sec")] public double PosSec { get; set; }
     [JsonPropertyName("dur_sec")] public double DurSec { get; set; }
+    /// <summary>系统音量 0-100</summary>
+    [JsonPropertyName("volume")] public int Volume { get; set; }
+    [JsonPropertyName("muted")] public bool Muted { get; set; }
 }
 
 public sealed class ScriptDto
@@ -126,6 +160,9 @@ public sealed class SensorsDto
     /** GPU 核心负载 0-100 */
     [JsonPropertyName("gpu_load")] public double? GpuLoad { get; set; }
     [JsonPropertyName("gpu_name")] public string GpuName { get; set; } = "";
+    /// <summary>显存占用/总量 MB（LHM 提供时）</summary>
+    [JsonPropertyName("gpu_mem_used_mb")] public double? GpuMemUsedMb { get; set; }
+    [JsonPropertyName("gpu_mem_total_mb")] public double? GpuMemTotalMb { get; set; }
 }
 
 public sealed class WeatherDto

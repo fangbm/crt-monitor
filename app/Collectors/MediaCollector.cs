@@ -28,9 +28,15 @@ public sealed class MediaCollector : ICollector
 
     public void Poll(TickDto tick)
     {
+        var (volume, muted) = AudioVolume.Get();
         if (_manager is null || _busy)
         {
-            if (_cache is not null) tick.Metrics.Media = _cache;
+            if (_cache is not null)
+            {
+                _cache.Volume = volume;
+                _cache.Muted = muted;
+                tick.Metrics.Media = _cache;
+            }
             return;
         }
         _busy = true;
@@ -63,6 +69,11 @@ public sealed class MediaCollector : ICollector
                 _busy = false;
             }
         });
-        if (_cache is not null) tick.Metrics.Media = _cache;
+        if (_cache is not null)
+        {
+            _cache.Volume = volume;
+            _cache.Muted = muted;
+            tick.Metrics.Media = _cache;
+        }
     }
 }

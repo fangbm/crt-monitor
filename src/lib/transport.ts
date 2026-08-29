@@ -53,6 +53,10 @@ export interface ShellConfig {
   burnin?: string;
   /** 卡片参数（键=卡片 id），如 {"proc":{"count":12}} */
   cardconf?: Record<string, Record<string, unknown>> | null;
+  /** 布局预设名列表（P 键循环切换） */
+  profiles?: string[] | null;
+  /** 当前预设名 */
+  profile?: string | null;
 }
 
 export interface AutostartNotice {
@@ -209,7 +213,7 @@ function startMock(cb: (m: MetricsTick) => void): () => void {
           { name: "explorer", cpu: 0.8, mem_b: 120_000_000 },
           { name: "spoolsv", cpu: 0.1, mem_b: 20_000_000 },
         ],
-        sensors: { cpu_temp: 62, gpu_temp: 58, gpu_load: 34, gpu_name: "NVIDIA GeForce RTX 4070" },
+        sensors: { cpu_temp: 62, gpu_temp: 58, gpu_load: 34, gpu_name: "NVIDIA GeForce RTX 4070", gpu_mem_used_mb: 4200, gpu_mem_total_mb: 12288 },
         weather: { temp_c: 28.4, humidity: 63, wind_kmh: 12, code: 2, text: "多云", place: "Shenzhen", forecast: [
           { code: 1, min_c: 26, max_c: 33 },
           { code: 3, min_c: 25, max_c: 31 },
@@ -217,12 +221,21 @@ function startMock(cb: (m: MetricsTick) => void): () => void {
         ] },
         battery: { present: true, charge_pct: 76, ac_power: true },
         alerts: [],
-        media: { title: "Retro Terminal Mix", artist: "Phosphor DJ", status: "playing", pos_sec: 83, dur_sec: 254 },
+        media: { title: "Retro Terminal Mix", artist: "Phosphor DJ", status: "playing", pos_sec: 83, dur_sec: 254, volume: 40, muted: false },
         scripts: [{ name: "weather-cli", value: "28C sunny", age_ms: 4200 }],
         remotes: [
           { name: "htpc", cpu: 12, mem_pct: 46, mem_used: 6_400_000_000, mem_total: 16_000_000_000, rx_bps: 900_000, tx_bps: 120_000, age_ms: 800 },
           { name: "nas", cpu: 3, mem_pct: 62, mem_used: 7_800_000_000, mem_total: 12_000_000_000, rx_bps: 2_400_000, tx_bps: 300_000, age_ms: 500 },
         ],
+        pings: [
+          { name: "网关", ms: 2, lost_pct: 0, series: Array.from({ length: 40 }, () => 1 + Math.random() * 3) },
+          { name: "外网", ms: 18, lost_pct: 4, series: Array.from({ length: 40 }, (_, i) => (i % 11 === 0 ? -1 : 12 + Math.random() * 14)) },
+        ],
+        events: [
+          { ts: Date.now() - 300_000, level: "err", source: "Service1", msg: "Service failed to start" },
+          { ts: Date.now() - 900_000, level: "warn", source: "Disk", msg: "SMART predictive failure" },
+        ],
+        boot: { booted_at: Math.floor(Date.now() / 1000) - 3600 * 72, last_shutdown: Math.floor(Date.now() / 1000) - 3600 * 76 },
       },
     });
   }, 1000);

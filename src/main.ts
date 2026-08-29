@@ -22,16 +22,20 @@ import "./widgets/media";
 import "./widgets/netnic";
 import "./widgets/scriptcard";
 import "./widgets/remotecard";
+import "./widgets/ping";
+import "./widgets/events";
+import "./widgets/gpu";
+import "./widgets/boot";
 
 const LOGO = String.raw`  ____ ____  ____    ____
  / ___/ ___||  _ \  |  _ \ ___  __ _ _   _  ___
 | |   \___ \| |_) | | |_) / _ \/ _` + "`" + String.raw` | | | |/ _ \
 | |___ ___) |  _ <  |  _ <  __/ (_| | |_| |  __/
  \____|____/|_| \_\ |_| \_\___|\__, |\__,_|\___/
-                                |_|  MONITOR v0.9`;
+                                |_|  MONITOR v1.0`;
 
 const BOOT_LINES = [
-  "CRT-MONITOR BIOS v0.9  (c) 2026",
+  "CRT-MONITOR BIOS v1.0  (c) 2026",
   "MEMORY TEST ................ OK",
   "PHOSPHOR CALIBRATION ....... OK",
   "SCANLINE GENERATOR ......... OK",
@@ -77,9 +81,9 @@ const DEFAULT_PAGES: PageInfo[] = [
       { id: "disk", x: 72, y: 25, w: 28, h: 27 },
       { id: "net", x: 0, y: 52, w: 34, h: 48 },
       { id: "proc", x: 34, y: 52, w: 34, h: 48 },
-      { id: "sensors", x: 68, y: 52, w: 16, h: 48 },
+      { id: "gpu", x: 68, y: 52, w: 16, h: 48 },
       { id: "leds", x: 84, y: 52, w: 16, h: 24 },
-      { id: "alertlog", x: 84, y: 76, w: 16, h: 24 },
+      { id: "sensors", x: 84, y: 76, w: 16, h: 24 },
     ],
   },
   {
@@ -88,14 +92,24 @@ const DEFAULT_PAGES: PageInfo[] = [
       { id: "clock", x: 0, y: 0, w: 60, h: 68 },
       { id: "weather", x: 60, y: 0, w: 40, h: 44 },
       { id: "weather3", x: 60, y: 44, w: 40, h: 24 },
-      { id: "battery", x: 0, y: 68, w: 100, h: 32 },
+      { id: "media", x: 0, y: 68, w: 60, h: 32 },
+      { id: "boot", x: 60, y: 68, w: 40, h: 32 },
+    ],
+  },
+  {
+    name: "NET",
+    widgets: [
+      { id: "ping", x: 0, y: 0, w: 100, h: 55 },
+      { id: "netnic", x: 0, y: 55, w: 50, h: 45 },
+      { id: "stats", x: 50, y: 55, w: 50, h: 45 },
     ],
   },
   {
     name: "HIST",
     widgets: [
       { id: "hist24", x: 0, y: 0, w: 100, h: 62 },
-      { id: "stats", x: 0, y: 62, w: 100, h: 38 },
+      { id: "alertlog", x: 0, y: 62, w: 50, h: 38 },
+      { id: "events", x: 50, y: 62, w: 50, h: 38 },
     ],
   },
 ];
@@ -119,6 +133,8 @@ let latestTick: MetricsTick | null = null;
 let currentTheme = "green";
 let pluginsReady: Promise<void> = Promise.resolve();
 let shellBurnin: string | undefined;
+let profiles: string[] | null = null;
+let currentProfile: string | null = null;
 
 function fmtUptime(sec: number): string {
   const d = Math.floor(sec / 86400);
@@ -226,6 +242,19 @@ function switchPage(delta: number): void {
   currentPage = (currentPage + delta + pages.length) % pages.length;
   setEditMode(false);
   mountPage(currentPage);
+}
+
+/** 布局预设：壳端轮换 profile 并重发 config（本函数只触发 + 提示）。 */
+function cycleProfile(): void {
+  if (!profiles || profiles.length < 2) {
+    flashHint("NO PROFILES");
+    return;
+  }
+  postCommand("switch-profile");
+  const idx = profiles.indexOf(currentProfile ?? "");
+  const next = profiles[(idx + 1 + profiles.length) % profiles.length];
+  currentProfile = next;
+  flashHint(`PROFILE: ${next}`);
 }
 
 /** 布局编辑结束：把当前页坐标发回壳持久化（剥离旧版 layout 字段避免双写）。 */
@@ -506,6 +535,14 @@ function renderCardManager(): void {
     const mark = el("span", "cm-mark", active ? "▶" : "·");
     const label = el("span", "cm-label", t.name);
     row.append(mark, label);
+    if (active) {
+      const edit = el("button", "cm-edit", "✎");
+      edit.addEventListener("click", (e) => {
+        e.stopPropagation();
+        openThemeEditor(t.id, t.name);
+      });
+      row.append(edit);
+    }
     row.addEventListener("click", () => switchTheme(t.id));
     list.append(row);
   }
@@ -520,6 +557,76 @@ function openCardManager(): void {
   const panel = document.getElementById("card-manager")!;
   panel.hidden = false;
   renderCardManager();
+}
+
+/* ---------- 主题编辑器：调五色实时预览，写回 themes/{id}.json ---------- */
+
+const THEME_KEYS: Array<[string, string]> = [
+  ["--phos", "主色"],
+  ["--phos-bright", "高亮"],
+  ["--phos-dim", "次要"],
+  ["--phos-faint", "网格"],
+  ["--bg", "背景"],
+];
+
+function openThemeEditor(id: string, name: string): void {
+  const panel = document.getElementById("card-manager")!;
+  const current = getComputedStyle(document.documentElement);
+  panel.textContent = "";
+
+  const head = el("div", "cm-head");
+  head.append(el("span", "", `EDIT · ${name}`));
+  const close = el("button", "cm-close", "×");
+  close.addEventListener("click", () => renderCardManager());
+  head.append(close);
+
+  const form = el("div", "te-form");
+  const nameInput = el("input", "te-name") as HTMLInputElement;
+  nameInput.value = name;
+  form.append(el("div", "te-label", "NAME"), nameInput);
+
+  const vars: Record<string, string> = {};
+  for (const [key, label] of THEME_KEYS) {
+    const value = current.getPropertyValue(key).trim() || "#000000";
+    vars[key] = value;
+    const row = el("div", "te-row");
+    row.append(el("div", "te-label", label));
+    const input = el("input", "te-color") as HTMLInputElement;
+    input.type = "color";
+    input.value = toHex(value);
+    input.addEventListener("input", () => {
+      vars[key] = input.value;
+      document.documentElement.style.setProperty(key, input.value); // 实时预览
+    });
+    row.append(input);
+    form.append(row);
+  }
+
+  const save = el("button", "te-save", "SAVE");
+  save.addEventListener("click", () => {
+    const finalName = nameInput.value.trim() || id;
+    setThemeCatalog([{ id, name: finalName, vars }]);
+    applyTheme(id);
+    postCommand("save-theme", { id, name: finalName, vars });
+    flashHint(`THEME SAVED: ${id}`);
+    currentTheme = id;
+    renderCardManager();
+  });
+  const cancel = el("button", "te-cancel", "CANCEL");
+  cancel.addEventListener("click", () => {
+    applyTheme(id); // 还原
+    renderCardManager();
+  });
+  form.append(save, cancel);
+
+  panel.append(head, form);
+}
+
+function toHex(value: string): string {
+  const v = value.trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(v)) return v;
+  // rgb()/color-mix() 等取不到精确值时回退中性色
+  return "#3dff7c";
 }
 
 function setEditMode(on: boolean): void {
@@ -560,6 +667,8 @@ function applyConfig(c: ShellConfig): void {
   shellBurnin = c.burnin;
   applyBurninMode(c.burnin);
   setCardConf(c.cardconf);
+  profiles = c.profiles ?? null;
+  currentProfile = c.profile ?? null;
   if (c.pages && c.pages.length > 0) {
     pages = c.pages;
   } else if (c.layout && c.layout.length > 0) {
@@ -638,7 +747,9 @@ let __lastAt = 0;
     postCommand("toggle-autostart");
   } else if (code === "KeyT") {
     cycleTheme();
-  } else if (code === "Digit1") switchTheme("green");
+    } else if (code === "KeyP") {
+      cycleProfile();
+    } else if (code === "Digit1") switchTheme("green");
   else if (code === "Digit2") switchTheme("amber");
   else if (code === "Digit3") switchTheme("white");
 };

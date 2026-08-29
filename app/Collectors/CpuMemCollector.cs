@@ -2,7 +2,7 @@ using System.Runtime.InteropServices;
 
 namespace CrtMonitor.Collectors;
 
-/// <summary>CPU 每核/总占用、实时频率、内存与交换、运行时间、主机静态信息。</summary>
+/// <summary>CPU 每核/总占用、实时频率、内存与交换、运行时间、主机静态信息、开机统计。</summary>
 public sealed class CpuMemCollector : ICollector
 {
     [DllImport("kernel32.dll")]
@@ -11,14 +11,40 @@ public sealed class CpuMemCollector : ICollector
     private long[] _prevIdle = Array.Empty<long>();
     private long[] _prevBusy = Array.Empty<long>();
     private HostDto? _host;
+    private long? _lastShutdown;
 
     public void Poll(TickDto tick)
     {
         PollCpu(tick);
         PollMem(tick);
         // 系统开机时长（不是本进程运行时长）
-        tick.UptimeSec = (long)(GetTickCount64() / 1000);
+        long uptimeSec = (long)(GetTickCount64() / 1000);
+        tick.UptimeSec = uptimeSec;
+        tick.Metrics.Boot = new BootDto
+        {
+            BootedAt = DateTimeOffset.Now.ToUnixTimeSeconds() - uptimeSec,
+            LastShutdown = GetLastShutdown(),
+        };
         tick.Host = GetHost(tick.Host);
+    }
+
+    /// <summary>上次正常关机时间：HKLM\...\Windows\ShutdownTime（FILETIME），读一次缓存。</summary>
+    private long GetLastShutdown()
+    {
+        if (_lastShutdown.HasValue) return _lastShutdown.Value;
+        _lastShutdown = 0;
+        try
+        {
+            var v = Microsoft.Win32.Registry.GetValue(
+                @"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Windows", "ShutdownTime", null);
+            if (v is long filetime && filetime > 0)
+            {
+                var dt = DateTime.FromFileTime(filetime);
+                _lastShutdown = new DateTimeOffset(dt.ToUniversalTime()).ToUnixTimeSeconds();
+            }
+        }
+        catch { /* 读不到就 0（前端显示未知） */ }
+        return _lastShutdown.Value;
     }
 
     private void PollCpu(TickDto tick)

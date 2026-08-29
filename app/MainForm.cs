@@ -6,11 +6,11 @@ namespace CrtMonitor;
 /// <summary>无边框全屏窗口（优先副屏）+ WebView2 承载前端。</summary>
 public sealed class MainForm : Form
 {
-    private readonly Config _cfg;
+    private Config _cfg;
     private readonly WebView2 _web = new();
-    private readonly Scheduler _scheduler;
+    private Scheduler _scheduler = null!;
     private readonly System.Windows.Forms.Timer _timer = new();
-    private readonly List<ThemeFile> _themes;
+    private List<ThemeFile> _themes;
     private readonly List<string> _pluginScripts;
     private readonly TrayService _tray;
     private bool _fullscreen = true;
@@ -48,6 +48,8 @@ public sealed class MainForm : Form
             _tray.Dispose();
             SaveWindowState();
         };
+
+        UpdateChecker.Start(msg => _tray.ShowBalloon("CRT-Monitor", msg));
     }
 
     /// <summary>窗口状态记忆：屏幕序号，windowstate.json。返回是否成功恢复。</summary>
@@ -137,6 +139,54 @@ public sealed class MainForm : Form
         catch (Exception ex)
         {
             Program.Log($"screenshot failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>布局预设切换：写回 profile 字段，重载配置后重发 config（前端换页组）。</summary>
+    private void SwitchProfile()
+    {
+        try
+        {
+            var names = _cfg.Profiles?.Select(p => p.Name).ToList();
+            if (names is not { Count: > 1 })
+            {
+                Program.Log("switch-profile: no profiles configured");
+                return;
+            }
+            int idx = Math.Max(0, names.IndexOf(_cfg.Profile ?? ""));
+            string next = names[(idx + 1) % names.Count];
+            ConfigStore.SetValue("profile", System.Text.Json.Nodes.JsonValue.Create(next));
+            _cfg = ConfigStore.Load();
+            _web.CoreWebView2?.PostWebMessageAsJson(ConfigMessageJson());
+            Program.Log($"profile -> {next}");
+        }
+        catch (Exception ex)
+        {
+            Program.Log($"switch profile failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>主题编辑器保存：写 themes/{id}.json，刷新扫描列表（前端已本地应用）。</summary>
+    private void SaveTheme(JsonElement root)
+    {
+        try
+        {
+            if (!root.TryGetProperty("value", out var v)) return;
+            string id = v.GetProperty("id").GetString() ?? "";
+            string name = v.GetProperty("name").GetString() ?? id;
+            var vars = new Dictionary<string, string>();
+            foreach (var prop in v.GetProperty("vars").EnumerateObject())
+                vars[prop.Name] = prop.Value.GetString() ?? "";
+            if (id.Length == 0 || vars.Count == 0) return;
+
+            string file = Path.Combine(AppContext.BaseDirectory, "themes", $"{id}.json");
+            File.WriteAllText(file, JsonSerializer.Serialize(new ThemeFile { Id = id, Name = name, Vars = vars }, ConfigJson.Web));
+            _themes = ThemeStore.Scan(AppContext.BaseDirectory);
+            Program.Log($"theme saved: {id}");
+        }
+        catch (Exception ex)
+        {
+            Program.Log($"save theme failed: {ex.Message}");
         }
     }
 
@@ -238,6 +288,8 @@ public sealed class MainForm : Form
             ["plugins"] = _pluginScripts,
             ["burnin"] = string.IsNullOrWhiteSpace(_cfg.Burnin) ? "always" : _cfg.Burnin,
             ["cardconf"] = _scheduler.CardConf,
+            ["profiles"] = _cfg.Profiles?.Select(p => p.Name).ToList(),
+            ["profile"] = _cfg.Profile,
         };
         return JsonSerializer.Serialize(msg, ConfigJson.Web);
     }
@@ -280,6 +332,19 @@ public sealed class MainForm : Form
                     break;
                 case "screenshot":
                     _ = CaptureScreenshotAsync();
+                    break;
+                case "set-volume":
+                    if (doc.RootElement.TryGetProperty("value", out var volEl)
+                        && volEl.TryGetInt32(out int vol))
+                    {
+                        AudioVolume.Set(vol);
+                    }
+                    break;
+                case "switch-profile":
+                    SwitchProfile();
+                    break;
+                case "save-theme":
+                    SaveTheme(doc.RootElement);
                     break;
                 case "key-debug":
                     break;

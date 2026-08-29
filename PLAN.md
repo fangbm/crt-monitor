@@ -88,6 +88,7 @@
 | **v0.8 体验包** ✅ | 托盘图标（CPU% 数字动态重绘、左键显隐、右键导出/导入配置/退出；Esc 隐藏到托盘）、告警中心（alerts.json 持久化 + 气泡通知 + alertlog 卡片）、CPU 每核热力图卡片、磁盘 R/W 指示灯卡片、3 日天气预报（Open-Meteo daily）、今日上/下行流量累计（tick 积分，随 history.json 持久化）、S 键截图到 图片\CRT-Monitor\、屏保（5 分钟无操作切暗色大时钟防灼屏）、开机问候语。修复：页面 reload 后 config 不重发导致主题目录/布局回退（"modern 切不出来"的根因）、wwwroot 旧 bundle 堆积、快捷键双触发 |
 | **v0.8.1 防灼屏** ✅ | 整页低频漂移（±6px/30s，3s 缓动），burnin 配置 always/idle/off；屏保时钟同步漂移 |
 | **v0.9 互联与扩展** ✅ | 远程多机监控（被监控端 `--serve` HTTP 端点复用 Scheduler，监控端 RemoteCollector 拉取 + remote 卡片，断连 10s 显示离线）、脚本文本源（config scripts 定时跑外部命令，stdout 首行进 scripts 卡片）、正在播放媒体卡（WinRT 媒体会话：标题/艺术家/进度）、分网卡速率（netnic 卡片）、历史 7d（10 分钟降采样 + hist 卡片 1H/6H/24H/7D 档位）、cardconf 卡片参数（proc.count 等）、单实例互斥、渲染进程崩溃自动重载、窗口屏幕记忆、GitHub Actions tag 自动发布 |
+| **v1.0** ✅ | Ping 延迟/丢包卡（多目标 + 60 点迷你曲线，config pings）、NET 页、系统事件卡（System/Application 错误警告 24h）、GPU 深度卡（显存/负载/温度）、开机统计卡（注册表 ShutdownTime）、媒体卡音量（IAudioEndpointVolume COM，滚轮调节）、历史昨日同时段虚线对比、布局预设（config profiles + P 键轮换）、主题编辑器（卡片管理器 ✎ 可视化调五色写回 themes/*.json）、更新检查（GitHub Releases，托盘气泡，静默降级）。修复：uptime 用进程时长、截图句柄泄漏、脚本 ReadLine 死锁、proc cardconf 时机、卡片管理器滚动重置、NetCollector O(n²)、serve 端口占用崩溃 |
 
 ## 6. 目录结构（实际）
 
