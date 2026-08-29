@@ -753,28 +753,3 @@ body.edit button {
   border-color: var(--phos);
 }
 
-/* 屏保：全屏暗色大时钟 */
-#screensaver {
-  position: fixed;
-  inset: 0;
-  z-index: 200;
-  background: rgba(0, 0, 0, 0.88);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-}
-
-#screensaver .ss-clock {
-  font-size: clamp(60px, 18vh, 180px);
-  color: var(--phos-dim);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 6px;
-}
-
-#screensaver .ss-date {
-  font-size: clamp(14px, 2.4vh, 24px);
-  color: var(--phos-faint);
-  letter-spacing: 8px;
-}

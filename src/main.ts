@@ -685,48 +685,6 @@ function applyBurninMode(mode: string | undefined): void {
   startBurninDrift(); // always（默认）
 }
 
-/* ---------- 屏保：5 分钟无操作切暗色大时钟，任意输入退出 ---------- */
-
-const IDLE_MS = 5 * 60 * 1000;
-let idleTimer: ReturnType<typeof setTimeout> | null = null;
-
-function showScreensaver(on: boolean): void {
-  const ss = document.getElementById("screensaver")!;
-  ss.hidden = !on;
-  if (on) {
-    const tick = () => {
-      const d = new Date();
-      const clock = ss.querySelector(".ss-clock") as HTMLElement;
-      const date = ss.querySelector(".ss-date") as HTMLElement;
-      // 屏保时钟自身也做小幅漂移（idle 模式的防灼屏载体）
-      clock.style.transform = `translate(${(Math.random() * 40 - 20).toFixed(0)}px, ${(Math.random() * 24 - 12).toFixed(0)}px)`;
-      clock.textContent = d.toLocaleTimeString("zh-CN", { hour12: false, hour: "2-digit", minute: "2-digit" });
-      const names = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
-      date.textContent = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${names[d.getDay()]}`;
-    };
-    tick();
-    (ss as unknown as { _timer?: ReturnType<typeof setInterval> })._timer = setInterval(tick, 1000);
-  } else {
-    const t = (ss as unknown as { _timer?: ReturnType<typeof setInterval> })._timer;
-    if (t) clearInterval(t);
-  }
-}
-
-function armScreensaver(): void {
-  if (idleTimer) clearTimeout(idleTimer);
-  if (document.getElementById("screensaver") && !document.getElementById("screensaver")!.hidden) {
-    showScreensaver(false);
-  }
-  idleTimer = setTimeout(() => showScreensaver(true), IDLE_MS);
-}
-
-function bindIdleWatch(): void {
-  for (const ev of ["pointermove", "pointerdown", "keydown", "wheel"] as const) {
-    window.addEventListener(ev, armScreensaver, { passive: true });
-  }
-  armScreensaver();
-}
-
 async function main(): Promise<void> {
   // 先订阅再播放开机动画，避免壳消息在 boot 期间丢失
   connect({
@@ -749,7 +707,6 @@ async function main(): Promise<void> {
   await pluginsReady; // 插件注册的 widget 要在挂载 dashboard 前就位
   bindEditInteractions(document.getElementById("grid")!);
   document.getElementById("btn-cards")!.addEventListener("click", openCardManager);
-  bindIdleWatch();
   applyBurninMode(shellBurnin);
   document.getElementById("app")!.hidden = false;
   mountPage(currentPage);
