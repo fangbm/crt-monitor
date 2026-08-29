@@ -9,6 +9,7 @@ public sealed class NetCollector : ICollector
 {
     private sealed class NicSlot
     {
+        public string Name = "";
         public long Rx;
         public long Tx;
         public long At;
@@ -42,7 +43,13 @@ public sealed class NetCollector : ICollector
 
                 var slot = _nics.TryGetValue(id, out var s)
                     ? s
-                    : _nics[id] = new NicSlot { Rx = stats.BytesReceived, Tx = stats.BytesSent, At = nowMs };
+                    : _nics[id] = new NicSlot
+                    {
+                        Name = nic.Name.Length > 14 ? nic.Name[..13] + "…" : nic.Name,
+                        Rx = stats.BytesReceived,
+                        Tx = stats.BytesSent,
+                        At = nowMs,
+                    };
                 seen.Add(id);
                 if (slot.At > 0 && nowMs > slot.At)
                 {
@@ -83,19 +90,14 @@ public sealed class NetCollector : ICollector
             RxBps = Math.Round(rxBps, 1),
             TxBps = Math.Round(txBps, 1),
             Nics = _nics
-                .Select(kv =>
-                {
-                    var nic = NetworkInterface.GetAllNetworkInterfaces()
-                        .FirstOrDefault(n => n.Id == kv.Key);
-                    return (kv.Key, kv.Value, Name: nic?.Name ?? kv.Key);
-                })
-                .OrderByDescending(t => t.Value.RxBps + t.Value.TxBps)
+                .Select(kv => (kv.Value))
+                .OrderByDescending(v => v.RxBps + v.TxBps)
                 .Take(6)
-                .Select(t => new NicDto
+                .Select(v => new NicDto
                 {
-                    Name = t.Name.Length > 14 ? t.Name[..13] + "…" : t.Name,
-                    RxBps = Math.Round(t.Value.RxBps, 1),
-                    TxBps = Math.Round(t.Value.TxBps, 1),
+                    Name = v.Name,
+                    RxBps = Math.Round(v.RxBps, 1),
+                    TxBps = Math.Round(v.TxBps, 1),
                 })
                 .ToList(),
         };

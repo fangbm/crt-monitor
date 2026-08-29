@@ -469,11 +469,13 @@ function toggleCard(id: string, show: boolean): void {
 function renderCardManager(): void {
   const panel = document.getElementById("card-manager")!;
   if (panel.hidden) return;
-  const pageName = pages[currentPage].name;
+  // 保留滚动位置：点击切换会整体重建列表，不还原的话会跳回顶部
+  const oldList = panel.querySelector(".cm-list");
+  const scrollTop = oldList?.scrollTop ?? 0;
   panel.textContent = "";
 
   const head = el("div", "cm-head");
-  head.append(el("span", "", `CARDS · ${pageName}`));
+  head.append(el("span", "", `CARDS · ${pages[currentPage].name}`));
   const close = el("button", "cm-close", "×");
   close.addEventListener("click", () => (panel.hidden = true));
   head.append(close);
@@ -506,6 +508,8 @@ function renderCardManager(): void {
 
   const foot = el("div", "cm-foot", "插件：exe 目录 plugins/*.dll(js) 自动加载");
   panel.append(head, list, foot);
+  // 布局完成后才能正确设置 scrollTop（内容未排版时会被钳到 0）
+  requestAnimationFrame(() => (list.scrollTop = scrollTop));
 }
 
 function openCardManager(): void {

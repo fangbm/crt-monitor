@@ -59,8 +59,15 @@ public sealed class ScriptCollector : ICollector
                 RedirectStandardError = true,
                 CreateNoWindow = true,
             });
-            string? line = p!.StandardOutput.ReadLine();
-            if (!p.WaitForExit(5000))
+            // ReadLine 是同步阻塞的：命令不输出就直接卡死，必须带超时读
+            var readTask = p!.StandardOutput.ReadLineAsync();
+            if (!readTask.Wait(5000))
+            {
+                p.Kill(entireProcessTree: true);
+                return;
+            }
+            string? line = readTask.Status == TaskStatus.RanToCompletion ? readTask.Result : null;
+            if (!p.WaitForExit(2000))
             {
                 p.Kill(entireProcessTree: true);
                 return; // 超时不更新值

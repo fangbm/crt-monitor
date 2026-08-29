@@ -1,8 +1,6 @@
 import { conf, el, fmtBytes, bar, registerWidget, type Widget } from "./registry";
 import type { MetricsTick, ProcReading } from "../lib/types";
 
-const TOP_N = conf<{ count: number }>("proc", { count: 8 }).count;
-
 interface Row {
   root: HTMLElement;
   label: HTMLElement;
@@ -15,6 +13,8 @@ registerWidget({
   title: "PROC",
   span: 3,
   create(host: HTMLElement): Widget {
+    // cardconf 在 config 消息里，import 时还没到——必须在 create() 时读
+    const topN = conf<{ count: number }>("proc", { count: 8 }).count;
     host.append(el("div", "w-head", "PROCESSES (CPU)"));
     const list = el("div", "w-list w-proc");
     host.append(list);
@@ -36,7 +36,7 @@ registerWidget({
     return {
       update(m: MetricsTick) {
         const procs: ProcReading[] = m.metrics.proc ?? [];
-        for (let i = 0; i < procs.length && i < TOP_N; i++) {
+        for (let i = 0; i < procs.length && i < topN; i++) {
           const p = procs[i];
           const row = ensureRow(i);
           row.label.textContent = p.name.length > 16 ? p.name.slice(0, 15) + "…" : p.name;
@@ -45,7 +45,7 @@ registerWidget({
         }
         // 进程数减少时隐藏多余行
         for (let i = procs.length; i < rows.length; i++) rows[i].root.style.display = "none";
-        for (let i = 0; i < Math.min(procs.length, TOP_N); i++) rows[i].root.style.display = "";
+        for (let i = 0; i < Math.min(procs.length, topN); i++) rows[i].root.style.display = "";
       },
     };
   },

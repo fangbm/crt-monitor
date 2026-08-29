@@ -9,13 +9,35 @@ public static class ServeMode
 {
     private const string Prefix = "http://127.0.0.1:9123/metrics/";
 
+    private sealed class ServeState
+    {
+        public string? Latest;
+        public readonly object Gate = new();
+    }
+
     public static void Run(Config cfg)
     {
         Program.Log($"serve mode on {Prefix}");
         var scheduler = new Scheduler(cfg);
-        string? latest = null;
-        var gate = new object();
+        var state = new ServeState();
 
+        try
+        {
+            RunInner(cfg, scheduler, state);
+        }
+        catch (Exception ex)
+        {
+            Program.Log($"serve mode failed: {ex.Message}");
+        }
+        finally
+        {
+            scheduler.Dispose();
+            Program.Log("serve mode exit");
+        }
+    }
+
+    private static void RunInner(Config cfg, Scheduler scheduler, ServeState state)
+    {
         using var timer = new System.Threading.Timer(
             _ =>
             {
@@ -23,7 +45,7 @@ public static class ServeMode
                 {
                     var json = scheduler.CollectJson();
                     if (json is not null)
-                        lock (gate) latest = json;
+                        lock (state.Gate) state.Latest = json;
                 }
                 catch (Exception ex)
                 {
@@ -43,7 +65,7 @@ public static class ServeMode
             {
                 var ctx = listener.GetContext();
                 byte[] body;
-                lock (gate) body = Encoding.UTF8.GetBytes(latest ?? "{}");
+                lock (state.Gate) body = Encoding.UTF8.GetBytes(state.Latest ?? "{}");
                 ctx.Response.ContentType = "application/json";
                 ctx.Response.ContentLength64 = body.Length;
                 ctx.Response.OutputStream.Write(body);
@@ -54,7 +76,5 @@ public static class ServeMode
                 break;
             }
         }
-        scheduler.Dispose();
-        Program.Log("serve mode exit");
     }
 }
