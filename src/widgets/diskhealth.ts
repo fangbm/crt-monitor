@@ -12,7 +12,6 @@ registerWidget({
     const list = el("div", "dh-list");
     host.append(list);
     const rows = new Map<string, HTMLElement>();
-    let lastKey = "";
 
     function ensureRow(name: string): HTMLElement {
       let row = rows.get(name);
@@ -31,30 +30,25 @@ registerWidget({
     return {
       update(m: MetricsTick) {
         const items: SmartReading[] = m.metrics.smart ?? [];
-        const key = items.map((d) => d.name + (d.temp ?? "") + (d.life_pct ?? "")).join("|");
-        if (key === lastKey) return;
-        lastKey = key;
-
-        if (items.length === 0) {
-          head.textContent = "DISK HEALTH · NO STORAGE DATA";
-          list.textContent = "";
-          return;
-        }
-        head.textContent = "DISK HEALTH";
-        list.textContent = "";
+        const seen = new Set<string>();
         for (const d of items) {
+          seen.add(d.name);
           const row = ensureRow(d.name);
           (row.querySelector(".dh-name") as HTMLElement).textContent = d.name;
           const b = row.querySelector(".w-bar") as HTMLElement;
           const v = row.querySelector(".w-val") as HTMLElement;
           const parts: string[] = [];
-          if (d.temp != null) parts.push(`${d.temp}°C`);
+          if (d.temp != null && d.temp > 0) parts.push(`${d.temp}°C`);
           if (d.life_pct != null) parts.push(`LIFE ${d.life_pct}%`);
           if (d.used_pct != null) parts.push(`USED ${d.used_pct}%`);
           const ratio = d.life_pct != null ? d.life_pct / 100 : d.used_pct != null ? 1 - d.used_pct / 100 : 0;
           b.textContent = bar(ratio);
           v.textContent = parts.join("  ") || "—";
         }
+        for (const [name, row] of rows) {
+          if (!seen.has(name)) row.remove(), rows.delete(name);
+        }
+        head.textContent = items.length === 0 ? "DISK HEALTH · NO STORAGE DATA" : "DISK HEALTH";
       },
     };
   },
