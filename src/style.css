@@ -947,10 +947,22 @@ body.edit button {
   grid-template-columns: 1fr auto;
 }
 
+.dh-row .w-bar {
+  display: none; /* 数值已含寿命/已用信息，条形不留 */
+}
+
 .dh-name {
   overflow: hidden;
   text-overflow: ellipsis;
   color: var(--phos-bright);
+}
+
+/* 窄卡：盘名一行、数值换行到下一行 */
+@container widget (width < 300px) {
+  .dh-row {
+    grid-template-columns: 1fr;
+    row-gap: 2px;
+  }
 }
 
 /* 拖拽对齐辅助线 */
