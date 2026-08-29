@@ -17,25 +17,32 @@ registerWidget({
     let coreCount = 0;
     let lastCols = 0;
 
-    /** 在 1..n 列里选 |log2(格宽/格高)| 最小的排布（格子最接近正方形）。 */
+    /** 列数解算：只在整除核数的列数里挑格子最方的（12 → 1/2/3/4/6/12），
+     * 保证无残行空缺；仅当没有任何整除候选能容纳时才放宽到其它列数。 */
     function computeCols(w: number, h: number, n: number): number {
-      let best = 1;
-      let bestPenalty = Number.POSITIVE_INFINITY;
-      for (let c = 1; c <= n; c++) {
-        const rows = Math.ceil(n / c);
-        const cellW = w / c;
-        const cellH = h / rows;
-        if (cellW < 26 || cellH < 18) continue; // 格子太小不可读
-        const penalty = Math.abs(Math.log2(cellW / cellH));
-        // 几乎并列时偏好整除核数的排布（12 → 2/3/4/6 列）
-        const divides = n % c === 0 ? 0.9 : 1;
-        const score = penalty * divides;
-        if (score < bestPenalty) {
-          bestPenalty = score;
-          best = c;
+      const fits = (c: number) => w / c >= 26 && h / Math.ceil(n / c) >= 18;
+      const squarest = (pool: number[]): number => {
+        let best = pool[0];
+        let bestPenalty = Number.POSITIVE_INFINITY;
+        for (const c of pool) {
+          const penalty = Math.abs(Math.log2(w / c / (h / Math.ceil(n / c))));
+          if (penalty < bestPenalty) {
+            bestPenalty = penalty;
+            best = c;
+          }
         }
+        return best;
+      };
+
+      const all: number[] = [];
+      const divisors: number[] = [];
+      for (let c = 1; c <= n; c++) {
+        if (!fits(c)) continue;
+        all.push(c);
+        if (n % c === 0) divisors.push(c);
       }
-      return bestPenalty === Number.POSITIVE_INFINITY ? Math.max(1, Math.min(n, 6)) : best;
+      if (all.length === 0) return Math.max(1, Math.min(n, 6));
+      return squarest(divisors.length > 0 ? divisors : all);
     }
 
     function relayout(): void {
