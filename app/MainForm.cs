@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using Microsoft.Web.WebView2.WinForms;
 
@@ -6,6 +7,14 @@ namespace CrtMonitor;
 /// <summary>无边框全屏窗口（优先副屏）+ WebView2 承载前端。</summary>
 public sealed class MainForm : Form
 {
+    [DllImport("user32.dll")]
+    private static extern bool ReleaseCapture();
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
+
+    private const int WM_NCLBUTTONDOWN = 0xA1;
+    private const int HTCAPTION = 0x2;
     private Config _cfg;
     private readonly WebView2 _web = new();
     private Scheduler _scheduler = null!;
@@ -27,6 +36,7 @@ public sealed class MainForm : Form
         _tray = new TrayService(this, () => Array.IndexOf(Screen.AllScreens, PickScreen()));
 
         FormBorderStyle = FormBorderStyle.None;
+        Text = "CRT-Monitor"; // 窗口化时 Alt+Tab 有名字
         StartPosition = FormStartPosition.Manual;
         ShowInTaskbar = false;
         if (!RestoreWindowState())
@@ -404,6 +414,11 @@ public sealed class MainForm : Form
                     break;
                 case "save-theme":
                     SaveTheme(doc.RootElement);
+                    break;
+                case "drag-window":
+                    // 无边框窗口的标题栏拖拽：前端顶栏 pointerdown 转发过来
+                    ReleaseCapture();
+                    SendMessage(Handle, WM_NCLBUTTONDOWN, HTCAPTION, IntPtr.Zero);
                     break;
                 case "key-debug":
                     break;

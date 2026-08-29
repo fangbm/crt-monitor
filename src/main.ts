@@ -754,8 +754,18 @@ let __lastAt = 0;
   else if (code === "Digit3") switchTheme("white");
 };
 
-function bindHotkeys(): void {
-  window.addEventListener("keydown", (e) => {
+/** 顶栏 = 无边框窗口的标题栏：按住拖动移窗，双击切全屏（F11 窗口化后拖回来用）。 */
+function bindHeaderDrag(): void {
+  const hd = document.getElementById("hd")!;
+  hd.addEventListener("pointerdown", (e) => {
+    if (!window.chrome?.webview) return;
+    if ((e.target as HTMLElement).closest("button")) return;
+    postCommand("drag-window");
+  });
+  hd.addEventListener("dblclick", () => postCommand("toggle-fullscreen"));
+}
+
+function bindHotkeys(): void {  window.addEventListener("keydown", (e) => {
     if (e.key === "F11" || e.key === "Tab") e.preventDefault();
     (globalThis as Record<string, unknown>).__shiftTab = e.shiftKey;
     ((globalThis as Record<string, unknown>).__hotkey as (c: string, k?: string) => void)(e.code, e.key);
@@ -822,6 +832,7 @@ async function main(): Promise<void> {
   await pluginsReady; // 插件注册的 widget 要在挂载 dashboard 前就位
   bindEditInteractions(document.getElementById("grid")!);
   document.getElementById("btn-cards")!.addEventListener("click", openCardManager);
+  bindHeaderDrag();
   applyBurninMode(shellBurnin);
   document.getElementById("app")!.hidden = false;
   mountPage(currentPage);
