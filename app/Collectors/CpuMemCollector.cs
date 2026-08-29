@@ -1,8 +1,13 @@
+using System.Runtime.InteropServices;
+
 namespace CrtMonitor.Collectors;
 
 /// <summary>CPU 每核/总占用、实时频率、内存与交换、运行时间、主机静态信息。</summary>
 public sealed class CpuMemCollector : ICollector
 {
+    [DllImport("kernel32.dll")]
+    private static extern ulong GetTickCount64();
+
     private long[] _prevIdle = Array.Empty<long>();
     private long[] _prevBusy = Array.Empty<long>();
     private HostDto? _host;
@@ -11,7 +16,8 @@ public sealed class CpuMemCollector : ICollector
     {
         PollCpu(tick);
         PollMem(tick);
-        tick.UptimeSec = Environment.TickCount64 / 1000;
+        // 系统开机时长（不是本进程运行时长）
+        tick.UptimeSec = (long)(GetTickCount64() / 1000);
         tick.Host = GetHost(tick.Host);
     }
 

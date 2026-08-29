@@ -28,10 +28,10 @@ const LOGO = String.raw`  ____ ____  ____    ____
 | |   \___ \| |_) | | |_) / _ \/ _` + "`" + String.raw` | | | |/ _ \
 | |___ ___) |  _ <  |  _ <  __/ (_| | |_| |  __/
  \____|____/|_| \_\ |_| \_\___|\__, |\__,_|\___/
-                                |_|  MONITOR v0.8`;
+                                |_|  MONITOR v0.9`;
 
 const BOOT_LINES = [
-  "CRT-MONITOR BIOS v0.8  (c) 2026",
+  "CRT-MONITOR BIOS v0.9  (c) 2026",
   "MEMORY TEST ................ OK",
   "PHOSPHOR CALIBRATION ....... OK",
   "SCANLINE GENERATOR ......... OK",
@@ -429,12 +429,16 @@ function bindEditInteractions(grid: HTMLElement): void {
   grid.addEventListener("pointercancel", finish);
 }
 
+let hintTimer: ReturnType<typeof setTimeout> | null = null;
+
 function flashHint(text: string): void {
   const hint = document.getElementById("hint");
   if (!hint) return;
+  if (hintTimer) clearTimeout(hintTimer); // 连续提示时不让旧的定时器清掉新文本
   hint.textContent = text;
-  setTimeout(() => {
+  hintTimer = setTimeout(() => {
     if (!document.body.classList.contains("edit")) hint.textContent = "";
+    hintTimer = null;
   }, 2000);
 }
 

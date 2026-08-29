@@ -120,9 +120,12 @@ public sealed class MainForm : Form
                 Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "CRT-Monitor");
             Directory.CreateDirectory(dir);
             string file = Path.Combine(dir, $"crt-{DateTime.Now:yyyyMMdd-HHmmss}.png");
-            await _web.CoreWebView2.CapturePreviewAsync(
-                Microsoft.Web.WebView2.Core.CoreWebView2CapturePreviewImageFormat.Png,
-                new FileStream(file, FileMode.Create));
+            using (var stream = new FileStream(file, FileMode.Create))
+            {
+                await _web.CoreWebView2.CapturePreviewAsync(
+                    Microsoft.Web.WebView2.Core.CoreWebView2CapturePreviewImageFormat.Png,
+                    stream);
+            }
             Program.Log($"screenshot saved: {file}");
             _web.CoreWebView2?.PostWebMessageAsJson(
                 JsonSerializer.Serialize(new Dictionary<string, object?>

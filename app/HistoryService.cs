@@ -162,10 +162,11 @@ public sealed class HistoryService : IDisposable
     {
         try
         {
+            var snap = Snapshot();
             var payload = new Dictionary<string, object?>
             {
-                ["points"] = Snapshot().Points,
-                ["points10m"] = Snapshot().Points10m,
+                ["points"] = snap.Points,
+                ["points10m"] = snap.Points10m,
                 ["traffic"] = _traffic,
             };
             File.WriteAllText(DataPath, JsonSerializer.Serialize(payload, ConfigJson.Web));
