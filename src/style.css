@@ -203,6 +203,8 @@ body::before {
   min-width: 0;
   overflow: hidden;
   text-shadow: 0 0 6px color-mix(in srgb, var(--phos) var(--glow), transparent);
+  /* 每张卡片是独立的响应式容器：内部排版随卡片自身尺寸变化 */
+  container: widget / size;
 }
 
 /* 编辑态：参考网格线 + 移动光标（边/角光标由 JS 按坐标动态设置） */
@@ -914,5 +916,178 @@ body.edit button {
   font-size: clamp(10px, 1.4vh, 13px);
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+   卡片容器响应式：排版随卡片自身宽高变化（container: widget/size）
+   ============================================================ */
+
+/* 基础字号改为容器相对单位（卡片越大字越大） */
+.widget .w-head {
+  font-size: clamp(9px, 7cqw, 15px);
+}
+
+.widget .w-big {
+  font-size: clamp(15px, 17cqw, 46px);
+}
+
+.widget .w-row,
+.widget .w-io {
+  font-size: clamp(9px, 6.5cqw, 15px);
+}
+
+.widget .w-legend {
+  font-size: clamp(8px, 5.5cqw, 12px);
+}
+
+.widget .w-clock {
+  font-size: clamp(26px, 22cqw, 130px);
+}
+
+.widget .w-date {
+  font-size: clamp(10px, 5cqw, 20px);
+}
+
+.widget .w-weather-icon,
+.widget .w-weather-temp {
+  font-size: clamp(20px, 15cqw, 64px);
+}
+
+.widget .w-weather-desc {
+  font-size: clamp(10px, 6cqw, 16px);
+}
+
+.widget .w-weather-detail,
+.widget .md-artist,
+.widget .md-time,
+.widget .md-vol {
+  font-size: clamp(9px, 5.5cqw, 14px);
+}
+
+.widget .md-title {
+  font-size: clamp(11px, 7.5cqw, 22px);
+}
+
+.widget .hm-num {
+  font-size: clamp(7px, 4.5cqw, 13px);
+}
+
+.widget .pg-label {
+  font-size: clamp(9px, 5.5cqw, 14px);
+  width: 8em;
+}
+
+.widget .wf-row {
+  font-size: clamp(10px, 6.5cqw, 17px);
+}
+
+.widget .ev-msg {
+  font-size: clamp(9px, 5.5cqw, 14px);
+}
+
+/* ---------- 窄卡（<320px）：收紧行距、隐藏次要信息 ---------- */
+
+@container widget (width < 320px) {
+  .w-head {
+    letter-spacing: 1px;
+  }
+
+  .w-legend,
+  .md-artist,
+  .w-io {
+    display: none;
+  }
+
+  .w-row {
+    gap: 5px;
+  }
+
+  .pg-label {
+    width: 6.5em;
+  }
+
+  .wf-day {
+    width: 3em;
+  }
+
+  .hm-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .w-proc .w-bar {
+    display: none;
+  }
+
+  .w-proc .w-row,
+  .w-list .w-row {
+    grid-template-columns: auto 1fr;
+  }
+}
+
+/* ---------- 极窄卡（<190px）：只留主数值 ---------- */
+
+@container widget (width < 190px) {
+  .w-bar {
+    display: none;
+  }
+
+  .w-row {
+    grid-template-columns: 1fr auto;
+  }
+
+  .hm-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .w-weather-detail,
+  .md-bar,
+  .md-vol {
+    display: none;
+  }
+
+  .w-clock {
+    letter-spacing: 0;
+  }
+}
+
+/* ---------- 矮卡（<150px 高）：砍掉纵向装饰 ---------- */
+
+@container widget (height < 150px) {
+  .w-legend,
+  .md-artist,
+  .md-vol,
+  .wf-list {
+    display: none;
+  }
+
+  .w-clock,
+  .w-weather-main {
+    margin: auto 0;
+  }
+}
+
+/* ---------- 大卡（≥700px 宽且 ≥420px 高）：放大主视觉 ---------- */
+
+@container widget (width >= 700px) and (height >= 420px) {
+  .w-big {
+    font-size: clamp(24px, 9cqw, 72px);
+  }
+
+  .w-clock {
+    font-size: clamp(40px, 26cqw, 200px);
+  }
+
+  .w-weather-icon,
+  .w-weather-temp {
+    font-size: clamp(30px, 10cqw, 96px);
+  }
+
+  .hm-grid {
+    grid-template-columns: repeat(8, 1fr);
+  }
+
+  .widget {
+    padding: 16px 18px;
+  }
 }
 
