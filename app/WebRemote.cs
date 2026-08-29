@@ -76,36 +76,41 @@ public sealed class WebRemote : IDisposable
 
     private async Task Handle(TcpClient client)
     {
+        NetworkStream stream = client.GetStream();
+        var reader = new StreamReader(stream, Encoding.ASCII, false, 4096, leaveOpen: true);
+        string? requestLine = await reader.ReadLineAsync();
+        if (string.IsNullOrEmpty(requestLine))
+        {
+            client.Dispose();
+            return;
+        }
+        while (!string.IsNullOrEmpty(await reader.ReadLineAsync())) { }
+
+        string path = requestLine.Split(' ')[1] switch
+        {
+            "/" => "/index.html",
+            var p => p.Split('?')[0],
+        };
+
+        if (path == "/events")
+        {
+            await ServeSse(stream); // 流的所有权移交 _sseClients（PushToSse 负责清理）
+            return;
+        }
+
         try
         {
-            using var _ = client;
-            var stream = client.GetStream();
-            var reader = new StreamReader(stream, Encoding.ASCII, false, 4096, leaveOpen: true);
-            string? requestLine = await reader.ReadLineAsync();
-            if (string.IsNullOrEmpty(requestLine)) return;
-            // 读完剩余请求头（直到空行）
-            while (!string.IsNullOrEmpty(await reader.ReadLineAsync())) { }
-
-            string path = requestLine.Split(' ')[1] switch
-            {
-                "/" => "/index.html",
-                var p => p.Split('?')[0],
-            };
-
-            if (path == "/events")
-            {
-                await ServeSse(stream);
-                return;
-            }
             if (path == "/config")
             {
                 await WriteBytes(stream, 200, "application/json", Encoding.UTF8.GetBytes(_config() ?? "{}"));
                 return;
             }
-
             await ServeStatic(stream, path);
         }
-        catch { /* 客户端断开等，忽略 */ }
+        finally
+        {
+            client.Dispose();
+        }
     }
 
     private async Task ServeSse(NetworkStream stream)
@@ -119,8 +124,7 @@ public sealed class WebRemote : IDisposable
         byte[] cfg = Encoding.UTF8.GetBytes($"data: {_config() ?? "{}"}\n\n");
         await stream.WriteAsync(cfg);
         await stream.FlushAsync();
-        // 保持连接由 PushToSse 驱动；本协程挂起等待断开检测交由写失败清理
-        await Task.Delay(Timeout.Infinite);
+        // 不挂起本任务：连接由 PushToSse 驱动，断开时其写失败 → 移除并释放
     }
 
     private async void PushToSse()

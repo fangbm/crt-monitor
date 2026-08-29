@@ -13,12 +13,12 @@ public sealed class PingCollector : ICollector
         public required string Name;
         public required string Host;
         public int IntervalSec = 2;
+        public readonly object Gate = new();
         public readonly List<double> Series = new(); // -1 = 丢包
         public bool Started;
     }
 
     private readonly List<Target> _targets = new();
-    private readonly object _gate = new();
 
     public PingCollector(List<PingConfig>? pings)
     {
@@ -34,24 +34,26 @@ public sealed class PingCollector : ICollector
         var results = new List<PingDto>();
         foreach (var t in _targets)
         {
-            if (!t.Started)
+            List<double> series;
+            lock (t.Gate)
             {
-                t.Started = true;
-                Task.Run(() => Loop(t));
-            }
-            lock (_gate)
-            {
-                var last = t.Series.Count > 0 ? t.Series[^1] : -1;
-                var window = t.Series.Skip(Math.Max(0, t.Series.Count - 30)).ToList();
-                double lost = window.Count > 0 ? window.Count(v => v < 0) * 100.0 / window.Count : 0;
-                results.Add(new PingDto
+                if (!t.Started)
                 {
-                    Name = t.Name,
-                    Ms = Math.Round(last, 0),
-                    LostPct = Math.Round(lost, 0),
-                    Series = new List<double>(t.Series),
-                });
+                    t.Started = true;
+                    Task.Run(() => Loop(t));
+                }
+                series = new List<double>(t.Series); // 循环线程在写，必须快照
             }
+            var last = series.Count > 0 ? series[^1] : -1;
+            var window = series.Skip(Math.Max(0, series.Count - 30)).ToList();
+            double lost = window.Count > 0 ? window.Count(v => v < 0) * 100.0 / window.Count : 0;
+            results.Add(new PingDto
+            {
+                Name = t.Name,
+                Ms = Math.Round(last, 0),
+                LostPct = Math.Round(lost, 0),
+                Series = series,
+            });
         }
         tick.Metrics.Pings = results;
     }
@@ -69,7 +71,7 @@ public sealed class PingCollector : ICollector
             }
             catch { /* 目标不可达按丢包 */ }
 
-            lock (_gate)
+            lock (t.Gate)
             {
                 t.Series.Add(ms);
                 if (t.Series.Count > Keep) t.Series.RemoveAt(0);

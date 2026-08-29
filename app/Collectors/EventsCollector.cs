@@ -30,17 +30,30 @@ public sealed class EventsCollector : ICollector
                         var cutoff = DateTime.Now.AddHours(-24);
                         for (int i = count - 1; i >= 0 && count - i < 800; i--)
                         {
-                            var e = log.Entries[i];
-                            if (e.TimeWritten < cutoff) break;
-                            if (e.EntryType is not (EventLogEntryType.Error or EventLogEntryType.Warning)) continue;
-                            string msg = e.Message ?? "";
+                            EventLogEntryType type;
+                            string source, msg;
+                            DateTime written;
+                            try
+                            {
+                                var e = log.Entries[i];
+                                type = e.EntryType;
+                                written = e.TimeWritten;
+                                source = e.Source;
+                                msg = e.Message ?? "";
+                            }
+                            catch
+                            {
+                                continue; // 单条损坏/被轮转清走：跳过而不是丢掉整轮
+                            }
+                            if (written < cutoff) break;
+                            if (type is not (EventLogEntryType.Error or EventLogEntryType.Warning)) continue;
                             int nl = msg.IndexOfAny(new[] { '\r', '\n' });
                             if (nl > 0) msg = msg[..nl];
                             all.Add(new EventDto
                             {
-                                Ts = new DateTimeOffset(e.TimeWritten.ToUniversalTime()).ToUnixTimeMilliseconds(),
-                                Level = e.EntryType == EventLogEntryType.Error ? "err" : "warn",
-                                Source = e.Source,
+                                Ts = new DateTimeOffset(written.ToUniversalTime()).ToUnixTimeMilliseconds(),
+                                Level = type == EventLogEntryType.Error ? "err" : "warn",
+                                Source = source,
                                 Msg = msg.Length > 70 ? msg[..69] + "…" : msg,
                             });
                             if (all.Count >= 10) break;

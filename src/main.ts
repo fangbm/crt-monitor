@@ -720,12 +720,18 @@ function applyConfig(c: ShellConfig): void {
   profiles = c.profiles ?? null;
   currentProfile = c.profile ?? null;
   themeSchedule = c.theme_schedule ?? null;
+  const pagesBefore = JSON.stringify(pages);
   if (c.pages && c.pages.length > 0) {
     pages = c.pages;
   } else if (c.layout && c.layout.length > 0) {
     pages = [{ name: "MAIN", layout: c.layout }];
   }
   currentPage = Math.min(currentPage, pages.length - 1);
+  // 已挂载过的界面（如 P 切预设后壳重发 config）需要立即重挂换页组；
+  // 启动首挂前 app 仍隐藏，由 main() 负责首次挂载。
+  if (pagesBefore !== JSON.stringify(pages) && !document.getElementById("app")!.hidden) {
+    mountPage(currentPage);
+  }
   if (c.plugins && c.plugins.length > 0) {
     pluginsReady = loadPlugins(c.plugins);
   }
