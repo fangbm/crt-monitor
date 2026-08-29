@@ -27,6 +27,7 @@ import "./widgets/events";
 import "./widgets/gpu";
 import "./widgets/boot";
 import "./widgets/spectrum";
+import "./widgets/diskhealth";
 
 const LOGO = String.raw`  ____ ____  ____    ____
  / ___/ ___||  _ \  |  _ \ ___  __ _ _   _  ___
@@ -135,6 +136,7 @@ let pluginsReady: Promise<void> = Promise.resolve();
 let shellBurnin: string | undefined;
 let profiles: string[] | null = null;
 let currentProfile: string | null = null;
+let themeSchedule: Array<{ from: string; to: string; theme: string }> | null = null;
 
 function fmtUptime(sec: number): string {
   const d = Math.floor(sec / 86400);
@@ -330,8 +332,31 @@ function pickZone(px: number, py: number, thrX: number, thrY: number): ZoneHit |
   return best;
 }
 
-const ZONE_CURSOR: Record<DragMode, string> = {
-  move: "move",
+/** 对齐辅助线：在网格上画横/竖参考线（百分比位置）。 */
+function showGuides(vx: number | null, hy: number | null): void {
+  const host = document.getElementById("guides")!;
+  host.hidden = vx === null && hy === null;
+  if (host.hidden) return;
+  host.textContent = "";
+  if (vx !== null) {
+    const v = el("div", "guide guide-v");
+    v.style.left = `${vx}%`;
+    host.append(v);
+  }
+  if (hy !== null) {
+    const h = el("div", "guide guide-h");
+    h.style.top = `${hy}%`;
+    host.append(h);
+  }
+}
+
+function hideGuides(): void {
+  const host = document.getElementById("guides")!;
+  host.hidden = true;
+  host.textContent = "";
+}
+
+const ZONE_CURSOR: Record<DragMode, string> = {  move: "move",
   l: "ew-resize",
   r: "ew-resize",
   t: "ns-resize",
@@ -396,7 +421,31 @@ function bindEditInteractions(grid: HTMLElement): void {
     if (drag.mode === "move") {
       p.x = o.x + dx;
       p.y = o.y + dy;
+
+      // 对齐辅助线：与其他卡片的边/中心在阈值内时吸附并画线
+      const TH = 1.2;
+      let gx: number | null = null;
+      let gy: number | null = null;
+      for (const other of mounted) {
+        if (other === drag.cell) continue;
+        if (gx === null) {
+          const myXs = [p.x, p.x + p.w / 2, p.x + p.w];
+          const oXs = [other.pos.x, other.pos.x + other.pos.w / 2, other.pos.x + other.pos.w];
+          for (const a of myXs) for (const b of oXs) {
+            if (Math.abs(a - b) <= TH) {
+              p.x -= a - b;
+              gx = b;
+              break;
+            }
+          }
+          if (gx !== null) for (const a of [p.y, p.y + p.h / 2, p.y + p.h]) for (const b of [other.pos.y, other.pos.y + other.pos.h / 2, other.pos.y + other.pos.h]) {
+            if (Math.abs(a - b) <= TH) { p.y -= a - b; gy = b; break; }
+          }
+        }
+      }
+      showGuides(gx, gy);
     } else {
+      hideGuides();
       if (drag.mode.includes("l")) {
         p.x = clamp(o.x + dx, 0, o.x + o.w - MIN_W);
         p.w = o.x + o.w - p.x;
@@ -418,6 +467,7 @@ function bindEditInteractions(grid: HTMLElement): void {
 
   const finish = () => {
     if (!drag) return;
+    hideGuides();
     const m = drag.cell;
     const p = m.pos;
     if (drag.mode === "move") {
@@ -669,6 +719,7 @@ function applyConfig(c: ShellConfig): void {
   setCardConf(c.cardconf);
   profiles = c.profiles ?? null;
   currentProfile = c.profile ?? null;
+  themeSchedule = c.theme_schedule ?? null;
   if (c.pages && c.pages.length > 0) {
     pages = c.pages;
   } else if (c.layout && c.layout.length > 0) {
@@ -743,6 +794,8 @@ let __lastAt = 0;
     }
   } else if (code === "KeyS") {
     postCommand("screenshot");
+  } else if (code === "KeyG") {
+    postCommand("export-csv");
   } else if (code === "KeyA") {
     postCommand("toggle-autostart");
   } else if (code === "KeyT") {
@@ -765,7 +818,13 @@ function bindHeaderDrag(): void {
   hd.addEventListener("dblclick", () => postCommand("toggle-fullscreen"));
 }
 
-function bindHotkeys(): void {  window.addEventListener("keydown", (e) => {
+function bindHotkeys(): void {
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "?") {
+      e.preventDefault();
+      toggleHelp();
+      return;
+    }
     if (e.key === "F11" || e.key === "Tab") e.preventDefault();
     (globalThis as Record<string, unknown>).__shiftTab = e.shiftKey;
     ((globalThis as Record<string, unknown>).__hotkey as (c: string, k?: string) => void)(e.code, e.key);
@@ -810,6 +869,70 @@ function applyBurninMode(mode: string | undefined): void {
   startBurninDrift(); // always（默认）
 }
 
+/* ---------- 主题定时轮换：时段内自动套用（from/to "HH:mm"，支持跨零点） ---------- */
+
+function minutesOf(hhmm: string): number {
+  const [h, m] = hhmm.split(":").map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
+
+function checkThemeSchedule(): void {
+  if (!themeSchedule || themeSchedule.length === 0) return;
+  const now = new Date();
+  const cur = now.getHours() * 60 + now.getMinutes();
+  for (const p of themeSchedule) {
+    const from = minutesOf(p.from);
+    const to = minutesOf(p.to);
+    const inRange = from <= to ? cur >= from && cur < to : cur >= from || cur < to;
+    if (inRange && currentTheme !== p.theme) {
+      currentTheme = p.theme;
+      applyTheme(p.theme);
+      postCommand("set-theme", p.theme);
+      flashHint(`THEME SCHEDULE: ${p.theme.toUpperCase()}`);
+    }
+  }
+}
+
+/* ---------- 快捷键帮助浮层（? 键） ---------- */
+
+const HOTKEYS: Array<[string, string]> = [
+  ["Tab", "切换页面"],
+  ["E", "布局编辑模式"],
+  ["C", "卡片管理器（编辑模式内）"],
+  ["P", "切换布局预设"],
+  ["S", "截图"],
+  ["G", "导出历史 CSV"],
+  ["T / 1 / 2 / 3", "切换主题"],
+  ["F11", "全屏 ⇄ 窗口化（顶栏可拖动，双击顶栏切全屏）"],
+  ["Esc", "隐藏到托盘"],
+  ["R", "重载前端"],
+  ["A", "开机自启开关"],
+  ["?", "本帮助"],
+];
+
+function toggleHelp(): void {
+  const panel = document.getElementById("hotkeys")!;
+  if (!panel.hidden) {
+    panel.hidden = true;
+    return;
+  }
+  panel.textContent = "";
+  const title = el("div", "hk-title", "HOTKEYS");
+  panel.append(title);
+  for (const [key, desc] of HOTKEYS) {
+    const row = el("div", "hk-row");
+    row.append(el("span", "hk-key", key));
+    row.append(el("span", "hk-desc", desc));
+    panel.append(row);
+  }
+  panel.append(el("div", "hk-foot", "点击任意处关闭"));
+  panel.hidden = false;
+}
+
+function bindHelp(): void {
+  document.getElementById("hotkeys")!.addEventListener("click", toggleHelp);
+}
+
 async function main(): Promise<void> {
   // 先订阅再播放开机动画，避免壳消息在 boot 期间丢失
   connect({
@@ -833,8 +956,9 @@ async function main(): Promise<void> {
   bindEditInteractions(document.getElementById("grid")!);
   document.getElementById("btn-cards")!.addEventListener("click", openCardManager);
   bindHeaderDrag();
+  bindHelp();
   applyBurninMode(shellBurnin);
-  document.getElementById("app")!.hidden = false;
+  setInterval(checkThemeSchedule, 30_000);  document.getElementById("app")!.hidden = false;
   mountPage(currentPage);
 }
 

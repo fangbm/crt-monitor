@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 
 namespace CrtMonitor;
@@ -39,6 +40,13 @@ public sealed class HistoryService : IDisposable
             p.Mem = p.Mem <= 0 ? memPct : (p.Mem + memPct) / 2;
             p.Rx = Math.Max(p.Rx, tick.Metrics.Net.RxBps);
             p.Tx = Math.Max(p.Tx, tick.Metrics.Net.TxBps);
+            // 温度：均值 + 峰值（无 LHM 时保持 0，前端视为无数据）
+            double temp = tick.Metrics.Sensors?.CpuTemp ?? 0;
+            if (temp > 0)
+            {
+                p.Temp = p.Temp <= 0 ? temp : (p.Temp + temp) / 2;
+                p.TempMax = Math.Max(p.TempMax, temp);
+            }
 
             // 环形裁剪
             if (_minutes.Count > KeepMinutes)
@@ -79,6 +87,11 @@ public sealed class HistoryService : IDisposable
             p10.Mem = p10.Mem <= 0 ? memPct : (p10.Mem + memPct) / 2;
             p10.Rx = Math.Max(p10.Rx, tick.Metrics.Net.RxBps);
             p10.Tx = Math.Max(p10.Tx, tick.Metrics.Net.TxBps);
+            if (temp > 0)
+            {
+                p10.Temp = p10.Temp <= 0 ? temp : (p10.Temp + temp) / 2;
+                p10.TempMax = Math.Max(p10.TempMax, temp);
+            }
             if (_minutes10.Count > 7 * 144)
             {
                 var cutoff10 = key10 - 7L * 144 * 600;
@@ -124,6 +137,23 @@ public sealed class HistoryService : IDisposable
             dto.Points10m = _minutes10.Values.OrderBy(p => p.T).ToList();
             return dto;
         }
+    }
+
+    /// <summary>24h 分钟级历史导出 CSV。</summary>
+    public string ToCsv()
+    {
+        var sb = new StringBuilder("time,cpu,cpu_max,mem_pct,rx_bps,tx_bps,temp,temp_max\n");
+        lock (_gate)
+        {
+            foreach (var p in _minutes.Values.OrderBy(p => p.T))
+            {
+                sb.Append(DateTimeOffset.FromUnixTimeSeconds(p.T).LocalDateTime.ToString("yyyy-MM-dd HH:mm")).Append(',')
+                  .Append(p.Cpu).Append(',').Append(p.CpuMax).Append(',').Append(p.Mem).Append(',')
+                  .Append(p.Rx).Append(',').Append(p.Tx).Append(',').Append(p.Temp).Append(',').Append(p.TempMax)
+                  .Append('\n');
+            }
+        }
+        return sb.ToString();
     }
 
     private void Load()

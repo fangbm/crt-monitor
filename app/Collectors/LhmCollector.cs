@@ -28,9 +28,33 @@ public sealed class LhmCollector : ICollector, IDisposable
         });
     }
 
+    private void Start()
+    {
+        Task.Run(() =>
+        {
+            try
+            {
+                var computer = new Computer
+                {
+                    IsCpuEnabled = true,
+                    IsGpuEnabled = true,
+                    IsStorageEnabled = true,
+                };
+                computer.Open();
+                _computer = computer;
+                Program.Log("LHM opened");
+            }
+            catch (Exception ex)
+            {
+                Program.Log($"LHM open failed: {ex.Message}");
+            }
+        });
+    }
+
     public void Poll(TickDto tick)
     {
         var dto = new SensorsDto();
+        var smart = new List<SmartDto>();
         var computer = _computer;
         if (computer is not null)
         {
@@ -43,9 +67,41 @@ public sealed class LhmCollector : ICollector, IDisposable
 
                     bool isCpu = hw.HardwareType == HardwareType.Cpu;
                     bool isGpu = hw.HardwareType is HardwareType.GpuNvidia or HardwareType.GpuAmd or HardwareType.GpuIntel;
+                    bool isStorage = hw.HardwareType == HardwareType.Storage;
                     if (isGpu && dto.GpuName.Length == 0) dto.GpuName = hw.Name;
 
-                    foreach (var sensor in hw.Sensors.Concat(hw.SubHardware.SelectMany(s => s.Sensors)))
+                    // 全部传感器（含子硬件，NVMe 在 Storage 的子层）
+                    var sensors = hw.Sensors.Concat(hw.SubHardware.SelectMany(s => s.Sensors)).ToList();
+
+                    if (isStorage)
+                    {
+                        var s = new SmartDto { Name = hw.Name.Length > 24 ? hw.Name[..23] + "…" : hw.Name };
+                        foreach (var sensor in sensors)
+                        {
+                            if (sensor.Value is not { } value) continue;
+                            if (sensor.SensorType == SensorType.Temperature && sensor.Name.Contains("Temperature"))
+                                s.Temp ??= Math.Round(value, 0);
+                            if (sensor.SensorType == SensorType.Level && sensor.Name.Contains("Remaining Life"))
+                                s.LifePct ??= Math.Round(value, 0);
+                            if (sensor.SensorType == SensorType.Load && sensor.Name.Contains("Used Space"))
+                                s.UsedPct ??= Math.Round(value, 0);
+                        }
+                        smart.Add(s);
+                        continue;
+                    }
+
+                    if (isCpu)
+                    {
+                        // 每核温度（供热力图温度模式）
+                        var coreTemps = sensors
+                            .Where(x => x.SensorType == SensorType.Temperature && x.Name.StartsWith("Core"))
+                            .OrderBy(x => x.Name, StringComparer.CurrentCulture)
+                            .Select(x => Math.Round(x.Value ?? 0, 0))
+                            .ToList();
+                        if (coreTemps.Count > 0) tick.Metrics.Cpu.CoresTemp = coreTemps;
+                    }
+
+                    foreach (var sensor in sensors)
                     {
                         if (sensor.Value is not { } value) continue;
                         if (isCpu && sensor.SensorType == SensorType.Temperature
@@ -69,6 +125,7 @@ public sealed class LhmCollector : ICollector, IDisposable
             }
         }
         tick.Metrics.Sensors = dto;
+        tick.Metrics.Smart = smart;
     }
 
     public void Dispose()

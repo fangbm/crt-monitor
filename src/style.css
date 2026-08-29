@@ -918,6 +918,112 @@ body.edit button {
   font-variant-numeric: tabular-nums;
 }
 
+/* 天气卡 AQI：默认隐藏，大卡展开 */
+.wq-extra {
+  display: none;
+  text-align: center;
+  font-size: clamp(10px, 1.4vh, 14px);
+  color: var(--phos-bright);
+  font-variant-numeric: tabular-nums;
+}
+
+@container widget (width >= 480px) and (height >= 280px) {
+  .wq-extra {
+    display: block;
+  }
+}
+
+/* 磁盘健康卡 */
+.dh-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.dh-row {
+  grid-template-columns: 1fr auto;
+}
+
+.dh-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--phos-bright);
+}
+
+/* 拖拽对齐辅助线 */
+#guides {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 40;
+}
+
+.guide {
+  position: absolute;
+  background: var(--phos-bright);
+  box-shadow: 0 0 6px var(--phos);
+}
+
+.guide-v {
+  top: 0;
+  bottom: 0;
+  width: 1px;
+}
+
+.guide-h {
+  left: 0;
+  right: 0;
+  height: 1px;
+}
+
+/* 快捷键帮助浮层 */
+#hotkeys {
+  position: fixed;
+  inset: 0;
+  z-index: 210;
+  background: rgba(0, 0, 0, 0.82);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+}
+
+.hk-title {
+  font-size: 22px;
+  letter-spacing: 6px;
+  color: var(--phos-bright);
+  text-shadow: 0 0 12px var(--phos);
+  margin-bottom: 18px;
+}
+
+.hk-row {
+  display: flex;
+  gap: 18px;
+  width: min(460px, 86vw);
+  padding: 5px 0;
+  border-bottom: 1px dashed var(--phos-faint);
+}
+
+.hk-key {
+  width: 10em;
+  color: var(--phos-bright);
+  text-shadow: 0 0 6px var(--phos);
+}
+
+.hk-desc {
+  color: var(--phos);
+}
+
+.hk-foot {
+  margin-top: 16px;
+  color: var(--phos-dim);
+  font-size: 12px;
+}
+
 /* ============================================================
    卡片容器响应式：排版随卡片自身宽高变化（container: widget/size）
    ============================================================ */

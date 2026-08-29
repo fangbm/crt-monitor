@@ -81,6 +81,13 @@ public sealed class Scheduler : IDisposable
         catch { return null; }
     }
 
+    /// <summary>24h 历史导出 CSV（export-csv 命令用）。</summary>
+    public string? HistoryCsv()
+    {
+        try { return _history.ToCsv(); }
+        catch { return null; }
+    }
+
     public void Dispose()
     {
         _spectrum?.Dispose();

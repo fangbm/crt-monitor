@@ -90,6 +90,7 @@
 | **v0.9 互联与扩展** ✅ | 远程多机监控（被监控端 `--serve` HTTP 端点复用 Scheduler，监控端 RemoteCollector 拉取 + remote 卡片，断连 10s 显示离线）、脚本文本源（config scripts 定时跑外部命令，stdout 首行进 scripts 卡片）、正在播放媒体卡（WinRT 媒体会话：标题/艺术家/进度）、分网卡速率（netnic 卡片）、历史 7d（10 分钟降采样 + hist 卡片 1H/6H/24H/7D 档位）、cardconf 卡片参数（proc.count 等）、单实例互斥、渲染进程崩溃自动重载、窗口屏幕记忆、GitHub Actions tag 自动发布 |
 | **v1.0** ✅ | Ping 延迟/丢包卡（多目标 + 60 点迷你曲线，config pings）、NET 页、系统事件卡（System/Application 错误警告 24h）、GPU 深度卡（显存/负载/温度）、开机统计卡（注册表 ShutdownTime）、媒体卡音量（IAudioEndpointVolume COM，滚轮调节）、历史昨日同时段虚线对比、布局预设（config profiles + P 键轮换）、主题编辑器（卡片管理器 ✎ 可视化调五色写回 themes/*.json）、更新检查（GitHub Releases，托盘气泡，静默降级）。修复：uptime 用进程时长、截图句柄泄漏、脚本 ReadLine 死锁、proc cardconf 时机、卡片管理器滚动重置、NetCollector O(n²)、serve 端口占用崩溃 |
 | **v1.0.1 音频与进程管理** ✅ | 音频频谱卡（WASAPI loopback + NAudio FFT，24 对数频段 + 峰值帽，config spectrum 开关，无声自动衰减）、进程管理（编辑模式点两下行结束同名进程树，关键进程保护名单 + 结果回执提示） |
+| **v1.1 Web 与健康** ✅ | Web 远看（TcpListener 手写 HTTP 绕开 URL ACL，静态页 + SSE 每秒推送 + /config，只读免管理员，web_port 配置）、SMART 磁盘健康卡（LHM 存储传感器：温度/剩余寿命/已用）、温度入历史（分钟+10m 桶，hist 温度细线）、热力图温度模式（点击切换，LHM 每核温度）、天气卡 AQI（Open-Meteo air-quality，US AQI + PM2.5，容器查询大卡展开）、历史导出 CSV（G 键）、拖拽对齐辅助线（边/中心吸附 + 参考线）、快捷键帮助浮层（?）、主题定时轮换（theme_schedule 时段规则）。修复：热力图列数只允许整除核数（杜绝残行）、顶栏拖窗、验证脚本位置污染 |
 
 ## 6. 目录结构（实际）
 

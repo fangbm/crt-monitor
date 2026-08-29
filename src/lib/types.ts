@@ -25,7 +25,15 @@ export interface MetricsTick {
     events: EventReading[];
     boot: BootReading | null;
     spectrum: number[];
+    smart: SmartReading[];
   };
+}
+
+export interface SmartReading {
+  name: string;
+  temp: number | null;
+  life_pct: number | null;
+  used_pct: number | null;
 }
 
 export interface PingReading {
@@ -88,6 +96,9 @@ export interface HistoryPoint {
   mem: number;
   rx: number;
   tx: number;
+  /** CPU 温度 °C（无 LHM 时 0） */
+  temp?: number;
+  temp_max?: number;
 }
 
 export interface HistoryStats {
@@ -125,6 +136,9 @@ export interface WeatherReading {
   text: string;
   place: string;
   forecast: ForecastDay[];
+  /** US AQI（无数据 -1） */
+  aqi: number;
+  pm25: number;
 }
 
 export interface ForecastDay {
@@ -159,6 +173,8 @@ export interface CpuReading {
   /** 0-100, len == core_count */
   cores: number[];
   freq_mhz: number | null;
+  /** 每核温度 °C（LHM 启用时） */
+  cores_temp?: number[];
 }
 
 export interface MemReading {

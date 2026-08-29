@@ -89,6 +89,20 @@ public sealed class WeatherCollector : ICollector
                 Place = _place ?? "",
                 Forecast = forecast,
             };
+
+            // 空气质量（同源免费接口，失败不影响天气）
+            try
+            {
+                string aqiUrl = $"https://air-quality-api.open-meteo.com/v1/air-quality?latitude={_lat}&longitude={_lon}&current=us_aqi,pm2_5&timezone=auto";
+                using var aqiDoc = JsonDocument.Parse(await Http.GetStringAsync(aqiUrl));
+                var ac = aqiDoc.RootElement.GetProperty("current");
+                _cache.Aqi = ac.TryGetProperty("us_aqi", out var aqiEl) && aqiEl.ValueKind == JsonValueKind.Number
+                    ? (int)Math.Round(aqiEl.GetDouble()) : -1;
+                _cache.Pm25 = ac.TryGetProperty("pm2_5", out var pmEl) && pmEl.ValueKind == JsonValueKind.Number
+                    ? Math.Round(pmEl.GetDouble(), 1) : -1;
+            }
+            catch { /* AQI 接口不可用就不显示 */ }
+
             _nextFetchUtc = DateTime.UtcNow.AddMinutes(15);
         }
         catch

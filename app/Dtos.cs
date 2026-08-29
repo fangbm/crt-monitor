@@ -39,6 +39,8 @@ public sealed class MetricsDto
     [JsonPropertyName("pings")] public List<PingDto> Pings { get; set; } = new();
     [JsonPropertyName("events")] public List<EventDto> Events { get; set; } = new();
     [JsonPropertyName("boot")] public BootDto? Boot { get; set; }
+    /// <summary>磁盘健康（SMART/存储传感器，LHM 启用时）</summary>
+    [JsonPropertyName("smart")] public List<SmartDto> Smart { get; set; } = new();
     /// <summary>音频频谱（24 频段 0-1；spectrum 未启用时为空）</summary>
     [JsonPropertyName("spectrum")] public List<double> Spectrum { get; set; } = new();
 }
@@ -69,6 +71,17 @@ public sealed class BootDto
     [JsonPropertyName("booted_at")] public long BootedAt { get; set; }
     /// <summary>上次正常关机时间（unix 秒，0 = 未知）</summary>
     [JsonPropertyName("last_shutdown")] public long LastShutdown { get; set; }
+}
+
+public sealed class SmartDto
+{
+    [JsonPropertyName("name")] public string Name { get; set; } = "";
+    /// <summary>°C，未知 null</summary>
+    [JsonPropertyName("temp")] public double? Temp { get; set; }
+    /// <summary>剩余寿命 %（NVMe），未知 null</summary>
+    [JsonPropertyName("life_pct")] public double? LifePct { get; set; }
+    /// <summary>已用空间 %（HDD/SSD），未知 null</summary>
+    [JsonPropertyName("used_pct")] public double? UsedPct { get; set; }
 }
 
 public sealed class AlertEntryDto
@@ -140,6 +153,9 @@ public sealed class HistoryPointDto
     [JsonPropertyName("mem")] public double Mem { get; set; }
     [JsonPropertyName("rx")] public double Rx { get; set; }
     [JsonPropertyName("tx")] public double Tx { get; set; }
+    /// <summary>CPU 温度 °C 均值（无 LHM 时 0）</summary>
+    [JsonPropertyName("temp")] public double Temp { get; set; }
+    [JsonPropertyName("temp_max")] public double TempMax { get; set; }
 }
 
 public sealed class HistoryStatsDto
@@ -178,6 +194,10 @@ public sealed class WeatherDto
     [JsonPropertyName("place")] public string Place { get; set; } = "";
     /// <summary>未来 3 天预报（不含今天）</summary>
     [JsonPropertyName("forecast")] public List<ForecastDayDto> Forecast { get; set; } = new();
+    /// <summary>US AQI（无数据 -1）</summary>
+    [JsonPropertyName("aqi")] public int Aqi { get; set; } = -1;
+    /// <summary>PM2.5 µg/m³（无数据 -1）</summary>
+    [JsonPropertyName("pm25")] public double Pm25 { get; set; } = -1;
 }
 
 public sealed class ForecastDayDto
@@ -200,6 +220,8 @@ public sealed class CpuDto
     [JsonPropertyName("usage")] public double Usage { get; set; }
     [JsonPropertyName("cores")] public List<double> Cores { get; set; } = new();
     [JsonPropertyName("freq_mhz")] public long? FreqMhz { get; set; }
+    /// <summary>每核温度 °C（LHM 启用时提供）</summary>
+    [JsonPropertyName("cores_temp")] public List<double>? CoresTemp { get; set; }
 }
 
 public sealed class MemDto

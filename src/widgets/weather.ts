@@ -15,6 +15,17 @@ function icon(code: number): string {
   return "⛈";
 }
 
+function aqiLevel(aqi: number): string {
+  if (aqi < 0) return "";
+  if (aqi <= 50) return "GOOD";
+  if (aqi <= 100) return "MODERATE";
+  if (aqi <= 150) return "USG";
+  if (aqi <= 200) return "UNHEALTHY";
+  if (aqi <= 300) return "VERY BAD";
+  return "HAZARDOUS";
+}
+
+/** 天气：当前 + AQI（大卡响应式展开更多环境信息）。 */
 registerWidget({
   id: "weather",
   title: "WEATHER",
@@ -28,7 +39,9 @@ registerWidget({
     host.append(main);
     const desc = el("div", "w-weather-desc", "FETCHING…");
     const detail = el("div", "w-weather-detail", "");
-    host.append(desc, detail);
+    // AQI / PM2.5：容器查询控制显隐（大卡展开）
+    const extra = el("div", "wq-extra");
+    host.append(desc, detail, extra);
 
     return {
       update(m: MetricsTick) {
@@ -38,12 +51,17 @@ registerWidget({
           temp.textContent = "--°";
           desc.textContent = "NO DATA";
           detail.textContent = "";
+          extra.textContent = "";
           return;
         }
         iconEl.textContent = icon(w.code);
         temp.textContent = `${Math.round(w.temp_c)}°`;
         desc.textContent = `${w.text}${w.place ? " · " + w.place : ""}`;
         detail.textContent = `RH ${w.humidity}%   WIND ${Math.round(w.wind_kmh)}km/h`;
+        extra.textContent =
+          w.aqi >= 0
+            ? `AQI ${w.aqi} ${aqiLevel(w.aqi)}${w.pm25 >= 0 ? ` · PM2.5 ${w.pm25}` : ""}`
+            : "";
       },
     };
   },

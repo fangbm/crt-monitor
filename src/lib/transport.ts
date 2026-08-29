@@ -57,6 +57,8 @@ export interface ShellConfig {
   profiles?: string[] | null;
   /** 当前预设名 */
   profile?: string | null;
+  /** 主题定时轮换时段 */
+  theme_schedule?: Array<{ from: string; to: string; theme: string }> | null;
 }
 
 export interface AutostartNotice {
@@ -111,6 +113,33 @@ export function connect(handlers: Handlers): () => void {
     wv.addEventListener("message", onMessage);
     return () => wv.removeEventListener("message", onMessage);
   }
+
+  // Web 远看模式：本页面由壳的 web_port HTTP 服务提供 → SSE 接实时数据
+  if (location.protocol.startsWith("http")) {
+    const es = new EventSource("/events");
+    es.onmessage = (e) => {
+      try {
+        const d = JSON.parse(e.data) as Partial<ShellConfig> & Partial<MetricsTick> & Partial<HistoryMsg>;
+        if (d && d.type === "config") handlers.onConfig(d as ShellConfig);
+        else if (d && d.type === "history") handlers.onHistory?.(d as HistoryMsg);
+        else if (d && d.version === 1) handlers.onTick(d as MetricsTick);
+      } catch { /* 断帧忽略 */ }
+    };
+    fetch("/config")
+      .then((r) => r.json())
+      .then((c) => handlers.onConfig(c as ShellConfig))
+      .catch(() => { /* SSE 首帧也带 config */ });
+    es.onerror = () => {
+      // 服务不可达（如本地 dev server）→ 退回模拟数据
+      if (!es.readyState) return;
+      es.close();
+      handlers.onConfig(mockConfig);
+      startMockHistory(handlers.onHistory);
+      startMock(handlers.onTick);
+    };
+    return () => es.close();
+  }
+
   handlers.onConfig(mockConfig);
   startMockHistory(handlers.onHistory);
   return startMock(handlers.onTick);
@@ -214,7 +243,7 @@ function startMock(cb: (m: MetricsTick) => void): () => void {
           { name: "spoolsv", cpu: 0.1, mem_b: 20_000_000 },
         ],
         sensors: { cpu_temp: 62, gpu_temp: 58, gpu_load: 34, gpu_name: "NVIDIA GeForce RTX 4070", gpu_mem_used_mb: 4200, gpu_mem_total_mb: 12288 },
-        weather: { temp_c: 28.4, humidity: 63, wind_kmh: 12, code: 2, text: "多云", place: "Shenzhen", forecast: [
+        weather: { temp_c: 28.4, humidity: 63, wind_kmh: 12, code: 2, text: "多云", place: "Shenzhen", aqi: 42, pm25: 8.3, forecast: [
           { code: 1, min_c: 26, max_c: 33 },
           { code: 3, min_c: 25, max_c: 31 },
           { code: 61, min_c: 24, max_c: 30 },
@@ -237,6 +266,10 @@ function startMock(cb: (m: MetricsTick) => void): () => void {
         ],
         boot: { booted_at: Math.floor(Date.now() / 1000) - 3600 * 72, last_shutdown: Math.floor(Date.now() / 1000) - 3600 * 76 },
         spectrum: Array.from({ length: 24 }, (_, i) => Math.max(0, Math.sin(i / 3) * 0.5 + Math.random() * 0.3)),
+        smart: [
+          { name: "Samsung SSD 980 PRO 1TB", temp: 42, life_pct: 97, used_pct: null },
+          { name: "WDC WD10EZEX-08WN4A0", temp: 33, life_pct: null, used_pct: 61 },
+        ],
       },
     });
   }, 1000);

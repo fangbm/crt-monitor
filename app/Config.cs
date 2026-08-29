@@ -39,6 +39,17 @@ public sealed class Config
     public string? Profile { get; init; }
     /// <summary>启用音频频谱卡（WASAPI loopback 采集，少量 CPU）</summary>
     public bool Spectrum { get; init; }
+    /// <summary>Web 远看端口（浏览器打开 http://本机IP:端口/）。0 = 关闭</summary>
+    public int WebPort { get; init; } = 8080;
+    /// <summary>主题定时轮换：时段内自动套用主题（from/to "HH:mm"，支持跨零点）</summary>
+    public List<ThemePeriod>? ThemeSchedule { get; init; }
+}
+
+public sealed class ThemePeriod
+{
+    public string From { get; init; } = "07:00";
+    public string To { get; init; } = "19:00";
+    public string Theme { get; init; } = "green";
 }
 
 public sealed class PingConfig

@@ -56,10 +56,23 @@ public sealed class MainForm : Form
             _timer.Stop();
             _scheduler.Dispose();
             _tray.Dispose();
+            _webRemote?.Dispose();
             SaveWindowState();
         };
 
         UpdateChecker.Start(msg => _tray.ShowBalloon("CRT-Monitor", msg));
+
+        // Web 远看：浏览器打开 http://本机IP:端口/ 实时查看（只读）
+        if (_cfg.WebPort > 0)
+        {
+            _webRemote = new WebRemote(
+                _cfg.WebPort,
+                Path.Combine(AppContext.BaseDirectory, "wwwroot"),
+                () => _lastTickJson,
+                ConfigMessageJson,
+                () => _scheduler.HistoryJson());
+            _webRemote.Start();
+        }
     }
 
     /// <summary>窗口状态记忆：屏幕序号，windowstate.json。返回是否成功恢复。</summary>
@@ -201,6 +214,34 @@ public sealed class MainForm : Form
         {
             Program.Log($"kill {name} failed: {ex.Message}");
             Reply($"KILL FAILED: {name.ToUpper()}");
+        }
+    }
+
+    private WebRemote? _webRemote;
+    private volatile string _lastTickJson = "{}";
+
+    /// <summary>导出 24h 历史 CSV 到 图片\CRT-Monitor\。</summary>
+    private void ExportHistoryCsv()
+    {
+        try
+        {
+            string csv = _scheduler.HistoryCsv() ?? "";
+            string dir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "CRT-Monitor");
+            Directory.CreateDirectory(dir);
+            string file = Path.Combine(dir, $"history-{DateTime.Now:yyyyMMdd-HHmm}.csv");
+            File.WriteAllText(file, csv);
+            Program.Log($"history exported: {file}");
+            _web.CoreWebView2?.PostWebMessageAsJson(
+                JsonSerializer.Serialize(new Dictionary<string, object?>
+                {
+                    ["type"] = "notice",
+                    ["text"] = $"CSV → {Path.GetFileName(file)}",
+                }, ConfigJson.Web));
+        }
+        catch (Exception ex)
+        {
+            Program.Log($"export csv failed: {ex.Message}");
         }
     }
 
@@ -415,6 +456,9 @@ public sealed class MainForm : Form
                 case "save-theme":
                     SaveTheme(doc.RootElement);
                     break;
+                case "export-csv":
+                    ExportHistoryCsv();
+                    break;
                 case "drag-window":
                     // 无边框窗口的标题栏拖拽：前端顶栏 pointerdown 转发过来
                     ReleaseCapture();
@@ -466,6 +510,7 @@ public sealed class MainForm : Form
         string? json = _scheduler.CollectJson();
         if (json is not null)
         {
+            _lastTickJson = json; // Web 远看复用同一份，避免并发采集
             core.PostWebMessageAsJson(json);
             if (json.Contains("\"cpu\":") && _scheduler.LastCpuPercent is { } cpu)
                 _tray.UpdateCpu(cpu);

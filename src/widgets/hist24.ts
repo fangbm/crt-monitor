@@ -97,6 +97,20 @@ function draw(canvas: HTMLCanvasElement, points: HistoryPoint[], spanSec: number
     }
   }
 
+  // 温度（有 LHM 数据时）：细实线，0-100°C 与占用同轴
+  const hasTemp = src.some((p) => (p.temp ?? 0) > 0);
+  if (hasTemp) {
+    ctx.beginPath();
+    src.forEach((p, i) => {
+      const px = x(p.t);
+      const py = y(p.temp ?? 0);
+      i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+    });
+    ctx.strokeStyle = phos;
+    ctx.lineWidth = 1.25 * dpr;
+    ctx.stroke();
+  }
+
   line((p) => p.cpu_max, dim, 1, false);
   line((p) => p.mem, dim, 1.5, false);
   line((p) => p.cpu, bright, 2, true);
@@ -127,7 +141,7 @@ registerWidget({
     const range = el("span", "hg-range");
     head.append(label, range);
     host.append(head);
-    const legend = el("div", "w-legend", "CPU AVG(亮) / CPU MAX / MEM / 昨日(虚线)");
+    const legend = el("div", "w-legend", "CPU AVG(亮) / MAX / MEM / TEMP(细) / 昨日(虚线)");
     host.append(legend);
     const canvas = el("canvas", "w-canvas");
     host.append(canvas);
