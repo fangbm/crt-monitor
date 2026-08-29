@@ -37,12 +37,14 @@ public sealed class MainForm : Form
 
         FormBorderStyle = FormBorderStyle.None;
         Text = "CRT-Monitor"; // 窗口化时 Alt+Tab 有名字
+        BackColor = Color.Black; // 消除 WebView2 首次渲染前的白闪
         StartPosition = FormStartPosition.Manual;
         ShowInTaskbar = false;
         if (!RestoreWindowState())
             Bounds = PickScreen().Bounds;
 
         _web.Dock = DockStyle.Fill;
+        _web.DefaultBackgroundColor = Color.Black; // 同上：控件自身的默认底色
         Controls.Add(_web);
 
         _timer.Interval = Math.Max(250, _cfg.RefreshMs);
