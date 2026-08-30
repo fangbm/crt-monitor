@@ -20,11 +20,17 @@ export class Scope {
   private opts: ScopeOptions;
   private resizeObserver?: ResizeObserver;
   private frames: number[][][] = [];
+  private sweep: number[][] | null = null;
+  private previousSweep: number[][] | null = null;
+  private sweepCursor = 0;
 
   constructor(canvas: HTMLCanvasElement, opts: ScopeOptions) {
     this.canvas = canvas;
     this.opts = opts;
     this.history = Array.from({ length: opts.channels }, () => []);
+    if (opts.oscilloscope) {
+      this.sweep = Array.from({ length: opts.channels }, () => Array(opts.capacity ?? 120).fill(Number.NaN));
+    }
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("canvas 2d unavailable");
     this.ctx = ctx;
@@ -38,6 +44,8 @@ export class Scope {
   dispose(): void {
     this.resizeObserver?.disconnect();
     this.frames = [];
+    this.sweep = null;
+    this.previousSweep = null;
   }
 
   get capacity(): number {
@@ -57,11 +65,24 @@ export class Scope {
       this.history[i].push(v);
       if (this.history[i].length > this.capacity) this.history[i].shift();
     }
-    if (this.opts.persistence) {
+    if (this.sweep) this.pushSweep(values);
+    if (this.opts.persistence && !this.opts.oscilloscope) {
       this.frames.push(this.history.map((channel) => [...channel]));
       while (this.frames.length > this.opts.persistence + 1) this.frames.shift();
     }
     this.draw();
+  }
+
+  private pushSweep(values: number[]): void {
+    if (!this.sweep) return;
+    // 当前束扫完最右端后，下一拍才回到左端；上一整轮留作唯一余辉。
+    if (this.sweepCursor >= this.capacity) {
+      this.previousSweep = this.sweep.map((channel) => [...channel]);
+      this.sweep = Array.from({ length: this.opts.channels }, () => Array(this.capacity).fill(Number.NaN));
+      this.sweepCursor = 0;
+    }
+    for (let i = 0; i < this.sweep.length; i++) this.sweep[i][this.sweepCursor] = values[i] ?? 0;
+    this.sweepCursor++;
   }
 
   private css(name: string): string {
@@ -84,6 +105,17 @@ export class Scope {
       for (const ch of this.history) for (const v of ch) if (v > max) max = v;
       if (max <= 0) max = 1;
       max *= 1.15;
+    }
+
+    if (this.opts.oscilloscope && this.sweep) {
+      if (this.previousSweep) {
+        ctx.globalAlpha = 0.22;
+        this.drawSweep(this.previousSweep, max, w, h, phos, dim);
+      }
+      ctx.globalAlpha = 1;
+      this.drawSweep(this.sweep, max, w, h, phos, dim);
+      if (this.opts.beam) this.drawSweepBeam(this.sweep, max, w, h, phos);
+      return;
     }
 
     const frames = this.opts.persistence && this.frames.length > 0 ? this.frames : [this.history];
@@ -162,11 +194,56 @@ export class Scope {
     });
   }
 
+  private drawSweep(frame: number[][], max: number, w: number, h: number, phos: string, dim: string): void {
+    const { ctx } = this;
+    const stepX = w / (this.capacity - 1);
+    frame.forEach((ch, ci) => {
+      const isPrimary = ci === frame.length - 1 || frame.length === 1;
+      let drawing = false;
+      ctx.beginPath();
+      for (let i = 0; i < ch.length; i++) {
+        const value = ch[i];
+        if (!Number.isFinite(value)) {
+          drawing = false;
+          continue;
+        }
+        const x = i * stepX;
+        const y = h - Math.min(1, Math.max(0, value / max)) * (h - 4) - 2;
+        if (!drawing) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+        drawing = true;
+      }
+      ctx.strokeStyle = isPrimary ? phos : dim;
+      ctx.lineWidth = isPrimary ? 2 : 1;
+      ctx.shadowColor = phos;
+      ctx.shadowBlur = isPrimary ? 8 : 0;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    });
+  }
+
   private drawBeam(frame: number[][], max: number, w: number, h: number, phos: string): void {
     const values = frame[frame.length - 1];
     const latest = values?.[values.length - 1];
     if (latest === undefined) return;
     const x = Math.max(4, w - 4);
+    const y = h - Math.min(1, Math.max(0, latest / max)) * (h - 4) - 2;
+    const { ctx } = this;
+    ctx.fillStyle = phos;
+    ctx.shadowColor = phos;
+    ctx.shadowBlur = 18;
+    ctx.beginPath();
+    ctx.arc(x, y, 3.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+
+  private drawSweepBeam(frame: number[][], max: number, w: number, h: number, phos: string): void {
+    const values = frame[frame.length - 1];
+    const index = Math.max(0, this.sweepCursor - 1);
+    const latest = values?.[index];
+    if (latest === undefined || !Number.isFinite(latest)) return;
+    const x = Math.min(w - 4, Math.max(4, (index * w) / (this.capacity - 1)));
     const y = h - Math.min(1, Math.max(0, latest / max)) * (h - 4) - 2;
     const { ctx } = this;
     ctx.fillStyle = phos;

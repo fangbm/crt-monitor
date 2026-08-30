@@ -103,13 +103,14 @@ registerWidget({
     const run = el("span", "scope-run", "● RUN");
     foot.append(vertical, time, average, peak, run);
     host.append(head, canvas, foot);
-    const capacity = 100;
+    // 默认 1 秒刷新时约 30 秒扫完一轮，能明显看到完整的左→右扫描。
+    const capacity = Math.max(12, Math.round(30_000 / refreshMs));
     const scope = new Scope(canvas, {
       channels: 1,
       fixedMax: metric.fixedMax,
       capacity,
       oscilloscope: true,
-      persistence: 4,
+      persistence: 1,
       beam: true,
     });
     const samples: number[] = [];
