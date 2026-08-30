@@ -36,6 +36,13 @@ internal static class Program
         var cfg = ConfigStore.Load();
         Log($"start v{typeof(Program).Assembly.GetName().Version} elevated={IsElevated()}");
 
+        // 自启动延迟：开机后等系统稳定再显示窗口（仅影响窗口出现时机）
+        if (cfg.StartDelaySec > 0)
+        {
+            Log($"start delay {cfg.StartDelaySec}s");
+            Thread.Sleep(cfg.StartDelaySec * 1000);
+        }
+
         TryRelaunchElevatedForLhm(cfg);
         if (cfg.Autostart is { } autostart) ApplyAutostart(autostart);
 

@@ -1,0 +1,11 @@
+{
+  "id": "ocean",
+  "name": "Ocean Blue",
+  "vars": {
+    "--phos": "#59d7ff",
+    "--phos-bright": "#d9f7ff",
+    "--phos-dim": "#0e4a63",
+    "--phos-faint": "#072b3a",
+    "--bg": "#020a0e"
+  }
+}

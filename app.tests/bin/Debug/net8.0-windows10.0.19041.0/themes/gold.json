@@ -1,0 +1,11 @@
+{
+  "id": "gold",
+  "name": "P3 Gold",
+  "vars": {
+    "--phos": "#ffd84a",
+    "--phos-bright": "#fff4c2",
+    "--phos-dim": "#7a6111",
+    "--phos-faint": "#3b3008",
+    "--bg": "#0c0903"
+  }
+}

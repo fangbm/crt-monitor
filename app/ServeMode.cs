@@ -1,5 +1,7 @@
 using System.Net;
+using System.Net.Sockets;
 using System.Text;
+using CrtMonitor.Collectors;
 
 namespace CrtMonitor;
 
@@ -8,6 +10,23 @@ namespace CrtMonitor;
 public static class ServeMode
 {
     private const string Prefix = "http://127.0.0.1:9123/metrics/";
+
+    private static List<ICollector> BuildCollectors(Config cfg)
+    {
+        return new List<ICollector>
+        {
+            new CpuMemCollector(),
+            new DiskCollector(),
+            new NetCollector(),
+            new ProcessCollector(),
+            new WeatherCollector(cfg.Weather),
+            new MediaCollector(),
+            new ScriptCollector(cfg.Scripts),
+            new RemoteCollector(cfg.Remotes),
+            new PingCollector(cfg.Pings),
+            new EventsCollector(),
+        };
+    }
 
     private sealed class ServeState
     {
@@ -18,7 +37,7 @@ public static class ServeMode
     public static void Run(Config cfg)
     {
         Program.Log($"serve mode on {Prefix}");
-        var scheduler = new Scheduler(cfg);
+        var scheduler = new Scheduler(BuildCollectors(cfg), cfg, null);
         var state = new ServeState();
 
         try

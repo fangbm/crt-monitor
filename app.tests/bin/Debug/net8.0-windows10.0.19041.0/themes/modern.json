@@ -1,0 +1,19 @@
+{
+  "id": "modern",
+  "name": "Modern Minimal",
+  "vars": {
+    "--phos": "#4da3ff",
+    "--phos-bright": "#e8edf5",
+    "--phos-dim": "#3a4150",
+    "--phos-faint": "#23272f",
+    "--bg": "#0e1116",
+    "--glow": "0%",
+    "--radius": "10px"
+  },
+  "effects": {
+    "scanline": 0,
+    "flicker": false,
+    "vignette": 0,
+    "curvature": false
+  }
+}

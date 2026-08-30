@@ -43,6 +43,8 @@ public sealed class Config
     public int WebPort { get; init; } = 8080;
     /// <summary>主题定时轮换：时段内自动套用主题（from/to "HH:mm"，支持跨零点）</summary>
     public List<ThemePeriod>? ThemeSchedule { get; init; }
+    /// <summary>自启动延迟秒数（开机后等系统稳定再显示窗口）</summary>
+    public int StartDelaySec { get; init; }
 }
 
 public sealed class ThemePeriod
@@ -227,6 +229,26 @@ public static class ConfigStore
         catch (Exception ex)
         {
             Program.Log($"config set {key} failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>设置面板保存：把局部配置对象（顶层键）深度合并进 config.json。</summary>
+    public static void Merge(JsonElement partial)
+    {
+        try
+        {
+            string path = Candidates().FirstOrDefault(File.Exists) ?? DefaultPath;
+            var root = File.Exists(path)
+                ? System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(path))!
+                : new System.Text.Json.Nodes.JsonObject();
+            foreach (var prop in partial.EnumerateObject())
+                root[prop.Name] = System.Text.Json.Nodes.JsonNode.Parse(prop.Value.GetRawText());
+            File.WriteAllText(path, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+            Program.Log("config merged (settings panel)");
+        }
+        catch (Exception ex)
+        {
+            Program.Log($"config merge failed: {ex.Message}");
         }
     }
 

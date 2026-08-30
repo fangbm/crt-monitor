@@ -3,47 +3,26 @@ using CrtMonitor.Collectors;
 
 namespace CrtMonitor;
 
-/// <summary>统一 tick：依次 poll 各 Collector → 告警评估 → 历史聚合 → 序列化协议 JSON → 推给 WebView2。</summary>
+/// <summary>统一 tick：依次 poll 各 Collector → 告警评估 → 历史聚合 → 序列化协议 JSON → 推给 WebView2。
+/// 采集器列表与 History 由调用方（MainForm）组装传入，设置变更时整体重建而不丢历史。</summary>
 public sealed class Scheduler : IDisposable
 {
     private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
 
     private readonly List<ICollector> _collectors;
     private readonly AlertEvaluator _alerts;
-    private readonly HistoryService _history = new();
-    private readonly SpectrumCollector? _spectrum;
+    private readonly HistoryService _history;
+    private readonly bool _ownsHistory;
     private int _tickCount;
 
     /// <summary>最近一轮的 CPU 总占用（托盘图标用）。</summary>
     public double? LastCpuPercent { get; private set; }
 
-    public Scheduler(Config cfg) : this(cfg, pluginCollectors: null, notify: null) { }
-
-    public Scheduler(Config cfg, List<ICollector>? pluginCollectors, Action<string>? notify = null)
+    public Scheduler(List<ICollector> collectors, Config cfg, Action<string>? notify, HistoryService? sharedHistory = null)
     {
-        _collectors = new List<ICollector>
-        {
-            new CpuMemCollector(),
-            new DiskCollector(),
-            new NetCollector(),
-            new ProcessCollector(),
-            new WeatherCollector(cfg.Weather),
-            new MediaCollector(),
-            new ScriptCollector(cfg.Scripts),
-            new RemoteCollector(cfg.Remotes),
-            new PingCollector(cfg.Pings),
-            new EventsCollector(),
-        };
-        if (cfg.Lhm)
-            _collectors.Add(new LhmCollector(enabled: true));
-        if (cfg.Spectrum)
-        {
-            _spectrum = new SpectrumCollector(enabled: true);
-            _collectors.Add(_spectrum);
-        }
-        if (pluginCollectors is { Count: > 0 })
-            _collectors.AddRange(pluginCollectors);
-
+        _collectors = collectors;
+        _history = sharedHistory ?? new HistoryService();
+        _ownsHistory = sharedHistory is null;
         _alerts = new AlertEvaluator(cfg.Alerts, cfg.AlertSound, notify);
         CardConf = cfg.CardConf;
     }
@@ -90,7 +69,6 @@ public sealed class Scheduler : IDisposable
 
     public void Dispose()
     {
-        _spectrum?.Dispose();
-        _history.Dispose();
+        if (_ownsHistory) _history.Dispose();
     }
 }

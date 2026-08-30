@@ -841,6 +841,31 @@ body.edit button {
 }
 
 /* 主题编辑器 */
+/* 设置面板（复用 te-* 表单样式） */
+#settings-panel {
+  position: fixed;
+  bottom: 72px;
+  right: 16px;
+  z-index: 78;
+  width: min(340px, 84vw);
+  max-height: 68vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  border: 1px solid var(--phos-dim);
+  box-shadow: 0 0 18px rgba(0, 0, 0, 0.8);
+}
+
+#settings-panel .te-row {
+  justify-content: space-between;
+}
+
+#settings-panel input[type="number"],
+#settings-panel select {
+  width: 7.5em;
+}
+
 .te-form {
   padding: 10px 12px;
   display: flex;

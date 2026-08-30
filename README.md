@@ -34,6 +34,12 @@ http://<本机IP>:8080/
 
  防灼屏靠整页低频微抖（`burnin: always`），无独立屏保。托盘左键切换显隐，右键可导出/导入 config.json（换机/分享布局主题）。
 
+## 设置面板
+
+卡片管理器（`E` → `C`）标题栏的 **⚙** 打开设置面板：刷新间隔、防灼屏模式、扫描线/暗角/闪烁/弯曲、音频频谱、温度与 SMART（LHM）、Web 端口、开机自启及延迟——表单化修改，APPLY 后自动写回 config.json 并热生效（温度/Web 端口等需要重建调度器的项也即时切换，无需重启）。
+
+复杂列表类配置（Ping 目标 / 告警规则 / 脚本源 / 远程机器 / 主题时段）仍走 config.json，见下文各节。
+
 ## 主题定时轮换
 
 ```json
@@ -142,7 +148,9 @@ config.json 加 `"spectrum": true` 启用（WASAPI loopback 采集系统输出�
 
 ## 扩展机制
 
-**主题**：exe 同目录 `themes/*.json`，字段 `{"id","name","vars":{...},"effects":{...可选}}`，启动自动扫描，`T` 键循环切换并持久化。`vars` 除五个色阶（`--phos/--phos-bright/--phos-dim/--phos-faint/--bg`）外还可设 `--glow`（辉光强度，默认 60%）和 `--radius`（面板圆角）；`effects` 让主题自带特效参数（如现代风关闭扫描线/闪烁/暗角/弯曲），切走自动还原全局设置。内置：磷光绿 / 琥珀 / 纸白；主题目录 8 套：`ocean` 海蓝、`red` 红色警戒、`ice` 冰蓝、`violet` 紫罗兰、`gold` P3 金黄、`magenta` 等离子粉、`sepia` 怀旧褐、`modern` 现代简约（蓝灰 + 圆角 + 无 CRT 特效）。
+**主题**：exe 同目录 `themes/*.json`，字段 `{"id","name","vars":{...},"effects":{...可选}}`，启动自动扫描，`T` 键循环切换并持久化。`vars` 除五个色阶（`--phos/--phos-bright/--phos-dim/--phos-faint/--bg`）外还可设 `--glow`（辉光强度，默认 60%）、`--radius`（面板圆角）和 **`--font-mono`（字体，如 `"Fusion Pixel 12px monospace", monospace`）**；`effects` 让主题自带特效参数（如现代风关闭扫描线/闪烁/暗角/弯曲），切走自动还原全局设置。内置：磷光绿 / 琥珀 / 纸白；主题目录 8 套：`ocean` 海蓝、`red` 红色警戒、`ice` 冰蓝、`violet` 紫罗兰、`gold` P3 金黄、`magenta` 等离子粉、`sepia` 怀旧褐、`modern` 现代简约（蓝灰 + 圆角 + 无 CRT 特效）。
+
+**自启延迟**：config `"start_delay_sec": 15` —— 开机自启时等 15 秒再显示窗口（错开开机高峰）。
 
 **插件**（两个维度，可只用其一）：
 - C# 采集器：`plugins/*.dll`，实现 `CrtMonitor.Collectors.ICollector`（参考 `plugins-src/BatteryPlugin`，注意 ProjectReference 加 `Private="false"`），宿主反射加载

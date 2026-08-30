@@ -137,6 +137,7 @@ let shellBurnin: string | undefined;
 let profiles: string[] | null = null;
 let currentProfile: string | null = null;
 let themeSchedule: Array<{ from: string; to: string; theme: string }> | null = null;
+let shellConfig: ShellConfig | null = null;
 
 function fmtUptime(sec: number): string {
   const d = Math.floor(sec / 86400);
@@ -151,15 +152,20 @@ async function boot(): Promise<void> {
     bootEl.remove();
     return;
   }
+  // 点击任意处跳过动画
+  let skipped = false;
+  bootEl.addEventListener("pointerdown", () => (skipped = true), { once: true });
+  bootEl.style.cursor = "pointer";
   const log = document.getElementById("boot-log")!;
   const lines = [...BOOT_LINES];
   lines.splice(lines.length - 1, 0, greetingLine());
   for (const line of lines) {
+    if (skipped) break;
     log.textContent += line + "\n";
     await new Promise((r) => setTimeout(r, 90));
   }
   bootEl.classList.add("fade");
-  await new Promise((r) => setTimeout(r, 400));
+  await new Promise((r) => setTimeout(r, skipped ? 120 : 400));
   bootEl.remove();
 }
 
@@ -559,6 +565,10 @@ function renderCardManager(): void {
 
   const head = el("div", "cm-head");
   head.append(el("span", "", `CARDS · ${pages[currentPage].name}`));
+  const gear = el("button", "cm-close", "⚙");
+  gear.title = "SETTINGS";
+  gear.addEventListener("click", () => openSettings());
+  head.append(gear);
   const close = el("button", "cm-close", "×");
   close.addEventListener("click", () => (panel.hidden = true));
   head.append(close);
@@ -607,6 +617,116 @@ function openCardManager(): void {
   const panel = document.getElementById("card-manager")!;
   panel.hidden = false;
   renderCardManager();
+}
+
+/* ---------- 设置面板：表单化修改 config（免手写 JSON） ---------- */
+
+interface SettingField {
+  key: string;
+  label: string;
+  type: "number" | "checkbox" | "select";
+  options?: string[];
+  note?: string;
+  /** config 里的读取路径（点分隔） */
+  path?: string;
+}
+
+const SETTINGS_FIELDS: SettingField[] = [
+  { key: "refresh_ms", label: "刷新间隔 ms", type: "number" },
+  { key: "burnin", label: "防灼屏", type: "select", options: ["always", "idle", "off"] },
+  { key: "web_port", label: "Web 端口", type: "number", note: "0=关闭" },
+  { key: "spectrum", label: "音频频谱", type: "checkbox" },
+  { key: "lhm", label: "温度/SMART", type: "checkbox", note: "需管理员" },
+  { key: "autostart", label: "开机自启", type: "checkbox" },
+  { key: "start_delay_sec", label: "自启延迟 s", type: "number" },
+  { key: "effects.scanline", label: "扫描线 %", type: "number" },
+  { key: "effects.vignette", label: "暗角 %", type: "number" },
+  { key: "effects.flicker", label: "闪烁", type: "checkbox" },
+  { key: "effects.curvature", label: "弯曲", type: "checkbox" },
+];
+
+function readPath(source: Record<string, unknown>, path: string): unknown {
+  let cur: unknown = source;
+  for (const part of path.split(".")) {
+    if (cur && typeof cur === "object") cur = (cur as Record<string, unknown>)[part];
+    else return undefined;
+  }
+  return cur;
+}
+
+function openSettings(): void {
+  const panel = document.getElementById("settings-panel")!;
+  panel.textContent = "";
+
+  const head = el("div", "cm-head");
+  head.append(el("span", "", "SETTINGS"));
+  const close = el("button", "cm-close", "×");
+  close.addEventListener("click", () => (panel.hidden = true));
+  head.append(close);
+
+  const form = el("div", "te-form");
+  const inputs = new Map<string, HTMLInputElement | HTMLSelectElement>();
+
+  for (const f of SETTINGS_FIELDS) {
+    const row = el("div", "te-row");
+    row.append(el("div", "te-label", f.label + (f.note ? ` (${f.note})` : "")));
+    let input: HTMLInputElement | HTMLSelectElement;
+    const raw = readPath((shellConfig ?? {}) as unknown as Record<string, unknown>, f.key);
+    if (f.type === "checkbox") {
+      input = el("input", "te-color") as HTMLInputElement;
+      input.type = "checkbox";
+      input.checked = raw === true;
+    } else if (f.type === "select") {
+      const sel = el("select", "te-color") as HTMLSelectElement;
+      for (const o of f.options ?? []) {
+        const opt = el("option") as HTMLOptionElement;
+        opt.value = o;
+        opt.textContent = o;
+        if (raw === o) opt.selected = true;
+        sel.append(opt);
+      }
+      input = sel;
+    } else {
+      input = el("input", "te-color") as HTMLInputElement;
+      input.type = "number";
+      if (typeof raw === "number") input.value = String(raw);
+    }
+    inputs.set(f.key, input);
+    row.append(input);
+    form.append(row);
+  }
+
+  const apply = el("button", "te-save", "APPLY");
+  apply.style.marginTop = "8px";
+  apply.addEventListener("click", () => {
+    const patch: Record<string, unknown> = {};
+    for (const f of SETTINGS_FIELDS) {
+      const input = inputs.get(f.key)!;
+      const parts = f.key.split(".");
+      let target = patch;
+      for (let i = 0; i < parts.length - 1; i++) {
+        target[parts[i]] = (target[parts[i]] as Record<string, unknown>) ?? {};
+        target = target[parts[i]] as Record<string, unknown>;
+      }
+      const leaf = parts[parts.length - 1];
+      if (f.type === "checkbox") target[leaf] = (input as HTMLInputElement).checked;
+      else if (f.type === "number") target[leaf] = Number(input.value) || 0;
+      else target[leaf] = input.value;
+    }
+    // 嵌套 effects 数值归一
+    const fx = patch.effects as Record<string, unknown> | undefined;
+    if (fx) {
+      if (typeof fx.scanline === "number") fx.scanline = Math.min(100, Math.max(0, fx.scanline)) / 100;
+      if (typeof fx.vignette === "number") fx.vignette = Math.min(100, Math.max(0, fx.vignette)) / 100;
+    }
+    panel.hidden = true;
+    postCommand("save-settings", patch);
+    flashHint("SETTINGS SAVED");
+  });
+  form.append(apply);
+
+  panel.append(head, form);
+  panel.hidden = false;
 }
 
 /* ---------- 主题编辑器：调五色实时预览，写回 themes/{id}.json ---------- */
@@ -710,6 +830,7 @@ function loadPlugins(names: string[]): Promise<void> {
 }
 
 function applyConfig(c: ShellConfig): void {
+  shellConfig = c;
   if (c.themes) setThemeCatalog(c.themes);
   currentTheme = c.theme;
   applyTheme(c.theme);

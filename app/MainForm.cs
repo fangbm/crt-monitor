@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using CrtMonitor.Collectors;
 using Microsoft.Web.WebView2.WinForms;
 
 namespace CrtMonitor;
@@ -21,6 +22,11 @@ public sealed class MainForm : Form
     private readonly System.Windows.Forms.Timer _timer = new();
     private List<ThemeFile> _themes;
     private readonly List<string> _pluginScripts;
+    private readonly List<ICollector> _pluginCollectors;
+    private readonly HistoryService _history = new();
+    private LhmCollector? _lhm;
+    private SpectrumCollector? _spectrum;
+    private WebRemote? _webRemote;
     private readonly TrayService _tray;
     private bool _fullscreen = true;
     private bool _userHidden;
@@ -32,8 +38,9 @@ public sealed class MainForm : Form
         _themes = ThemeStore.Scan(AppContext.BaseDirectory);
         var (pluginCollectors, scripts) = PluginLoader.Load(Path.Combine(AppContext.BaseDirectory, "plugins"));
         _pluginScripts = scripts;
-        _scheduler = new Scheduler(cfg, pluginCollectors, msg => _tray.ShowBalloon("CRT-Monitor 告警", msg));
+        _pluginCollectors = pluginCollectors;
         _tray = new TrayService(this, () => Array.IndexOf(Screen.AllScreens, PickScreen()));
+        _scheduler = BuildScheduler();
 
         FormBorderStyle = FormBorderStyle.None;
         Text = "CRT-Monitor"; // 窗口化时 Alt+Tab 有名字
@@ -57,6 +64,9 @@ public sealed class MainForm : Form
         {
             _timer.Stop();
             _scheduler.Dispose();
+            _lhm?.Dispose();
+            _spectrum?.Dispose();
+            _history.Dispose();
             _tray.Dispose();
             _webRemote?.Dispose();
             SaveWindowState();
@@ -219,7 +229,6 @@ public sealed class MainForm : Form
         }
     }
 
-    private WebRemote? _webRemote;
     private volatile string _lastTickJson = "{}";
 
     /// <summary>导出 24h 历史 CSV 到 图片\CRT-Monitor\。</summary>
@@ -292,6 +301,74 @@ public sealed class MainForm : Form
         catch (Exception ex)
         {
             Program.Log($"save theme failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>按当前 _cfg 组装采集器列表并创建调度器（LHM/频谱实例复用，历史共享）。</summary>
+    private Scheduler BuildScheduler()
+    {
+        if (_cfg.Lhm && _lhm is null) _lhm = new LhmCollector(enabled: true);
+        if (!_cfg.Lhm) { _lhm?.Dispose(); _lhm = null; }
+        if (_cfg.Spectrum && _spectrum is null) _spectrum = new SpectrumCollector(enabled: true);
+        if (!_cfg.Spectrum) { _spectrum?.Dispose(); _spectrum = null; }
+
+        var collectors = new List<ICollector>
+        {
+            new CpuMemCollector(),
+            new DiskCollector(),
+            new NetCollector(),
+            new ProcessCollector(),
+            new WeatherCollector(_cfg.Weather),
+            new MediaCollector(),
+            new ScriptCollector(_cfg.Scripts),
+            new RemoteCollector(_cfg.Remotes),
+            new PingCollector(_cfg.Pings),
+            new EventsCollector(),
+        };
+        if (_lhm is not null) collectors.Add(_lhm);
+        if (_spectrum is not null) collectors.Add(_spectrum);
+        collectors.AddRange(_pluginCollectors);
+
+        return new Scheduler(collectors, _cfg, msg => _tray.ShowBalloon("CRT-Monitor 告警", msg), _history);
+    }
+
+    /// <summary>设置面板保存：合并写回 config.json → 重建调度器/远看服务 → 重发 config。</summary>
+    private void ApplySettings(JsonElement partial)
+    {
+        try
+        {
+            ConfigStore.Merge(partial);
+            int oldPort = _cfg.WebPort;
+            _cfg = ConfigStore.Load();
+
+            _timer.Stop();
+            _scheduler.Dispose();
+            _scheduler = BuildScheduler();
+            _timer.Interval = Math.Max(250, _cfg.RefreshMs);
+            _timer.Start();
+
+            if (_cfg.WebPort != oldPort)
+            {
+                _webRemote?.Dispose();
+                _webRemote = null;
+                if (_cfg.WebPort > 0)
+                {
+                    _webRemote = new WebRemote(
+                        _cfg.WebPort,
+                        Path.Combine(AppContext.BaseDirectory, "wwwroot"),
+                        () => _lastTickJson,
+                        ConfigMessageJson,
+                        () => _scheduler.HistoryJson());
+                    _webRemote.Start();
+                }
+            }
+
+            Program.Log("settings applied");
+            _web.CoreWebView2?.PostWebMessageAsJson(ConfigMessageJson());
+        }
+        catch (Exception ex)
+        {
+            Program.Log($"apply settings failed: {ex.Message}");
         }
     }
 
@@ -457,6 +534,13 @@ public sealed class MainForm : Form
                     break;
                 case "save-theme":
                     SaveTheme(doc.RootElement);
+                    break;
+                case "save-settings":
+                    if (doc.RootElement.TryGetProperty("value", out var settingsEl)
+                        && settingsEl.ValueKind == JsonValueKind.Object)
+                    {
+                        ApplySettings(settingsEl.Clone());
+                    }
                     break;
                 case "export-csv":
                     ExportHistoryCsv();

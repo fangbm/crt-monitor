@@ -8,7 +8,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>CrtMonitor</AssemblyName>
     <RootNamespace>CrtMonitor</RootNamespace>
-    <Version>1.1.0</Version>
+    <Version>1.2.0</Version>
     <InvariantGlobalization>true</InvariantGlobalization>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
   </PropertyGroup>
@@ -17,7 +17,7 @@
     <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.6" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2903.40" />
     <PackageReference Include="NAudio" Version="2.2.1" />
-    <PackageReference Include="System.Management" Version="10.0.2" />
+    <PackageReference Include="System.Management" Version="10.0.11" />
   </ItemGroup>
 
   <!-- 主题文件与前端插件脚本随构建/发布拷贝 -->

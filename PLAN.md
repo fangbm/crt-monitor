@@ -91,6 +91,8 @@
 | **v1.0** ✅ | Ping 延迟/丢包卡（多目标 + 60 点迷你曲线，config pings）、NET 页、系统事件卡（System/Application 错误警告 24h）、GPU 深度卡（显存/负载/温度）、开机统计卡（注册表 ShutdownTime）、媒体卡音量（IAudioEndpointVolume COM，滚轮调节）、历史昨日同时段虚线对比、布局预设（config profiles + P 键轮换）、主题编辑器（卡片管理器 ✎ 可视化调五色写回 themes/*.json）、更新检查（GitHub Releases，托盘气泡，静默降级）。修复：uptime 用进程时长、截图句柄泄漏、脚本 ReadLine 死锁、proc cardconf 时机、卡片管理器滚动重置、NetCollector O(n²)、serve 端口占用崩溃 |
 | **v1.0.1 音频与进程管理** ✅ | 音频频谱卡（WASAPI loopback + NAudio FFT，24 对数频段 + 峰值帽，config spectrum 开关，无声自动衰减）、进程管理（编辑模式点两下行结束同名进程树，关键进程保护名单 + 结果回执提示） |
 | **v1.1 Web 与健康** ✅ | Web 远看（TcpListener 手写 HTTP 绕开 URL ACL，静态页 + SSE 每秒推送 + /config，只读免管理员，web_port 配置）、SMART 磁盘健康卡（LHM 存储传感器：温度/剩余寿命/已用）、温度入历史（分钟+10m 桶，hist 温度细线）、热力图温度模式（点击切换，LHM 每核温度）、天气卡 AQI（Open-Meteo air-quality，US AQI + PM2.5，容器查询大卡展开）、历史导出 CSV（G 键）、拖拽对齐辅助线（边/中心吸附 + 参考线）、快捷键帮助浮层（?）、主题定时轮换（theme_schedule 时段规则）。修复：热力图列数只允许整除核数（杜绝残行）、顶栏拖窗、验证脚本位置污染 |
+| **v1.1.1~1.1.3 打磨** ✅ | DISK HEALTH 僵尸行空白修复（就地更新）、窄卡换行堆叠、卡片标题固定 14px、单文件封装（75MB 压缩 exe + build-single.cmd）、桌面/开始菜单快捷方式、白屏黑底消除、顶栏拖窗 |
+| **v1.2 设置面板与质量** ✅ | 设置面板（卡片管理器 ⚙：刷新/特效/频谱/LHM/Web 端口/自启延迟，表单保存 → 深度合并 config.json → 调度器整体重建热生效，History 不丢）、开机动画点击跳过、主题可配字体（--font-mono）、自启延迟（start_delay_sec）、**xUnit 单元测试 14 例**（告警评估/历史聚合/协议序列化回归网）+ CI 测试步骤、docs/plugins.md 插件开发指南。实验：LHMM 0.9.7-pre 温度仍不支持 Ryzen 4000 移动版（回退 0.9.6 稳定版）。修复：Ping 序列竞态、SSE 连接任务泄漏、事件扫描单条容错、P 切预设不重挂、启动白屏、验证脚本位置污染 |
 
 ## 6. 目录结构（实际）
 
