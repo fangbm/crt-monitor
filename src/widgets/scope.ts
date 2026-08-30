@@ -49,8 +49,10 @@ const METRICS: Record<ScopeMetric, MetricDef> = {
 };
 
 let selectedMetric: ScopeMetric = "cpu.usage";
-const SWEEP_CAPACITY = 200;
+const SAMPLE_RATE_HZ = 20;
 const SWEEP_DURATION_MS = 5_000;
+const HORIZONTAL_DIVISIONS = 10;
+const SWEEP_CAPACITY = SAMPLE_RATE_HZ * (SWEEP_DURATION_MS / 1_000);
 const PERSISTENCE_RATIO = 1.05;
 
 export function scopeMetricIds(): ScopeMetric[] {
@@ -95,13 +97,13 @@ registerWidget({
     const canvas = el("canvas", "scope-canvas");
     const foot = el("div", "scope-foot");
     const vertical = el("span", "", "VERT —");
-    const time = el("span", "", fmtTime(1));
+    const time = el("span", "", fmtTime(SWEEP_DURATION_MS / 1_000 / HORIZONTAL_DIVISIONS));
     const average = el("span", "", "AVG —");
     const peak = el("span", "", "PEAK —");
     const run = el("span", "scope-run", "● RUN");
     foot.append(vertical, time, average, peak, run);
     host.append(head, canvas, foot);
-    // 壳端专用采集器按 20Hz 推送：10 秒扫过 10 格，全部是真实样本。
+    // 壳端专用采集器按 20Hz 推送；每一格代表相同的时间跨度，全部是真实样本。
     const capacity = SWEEP_CAPACITY;
     let scope: Scope | null = null;
     const samples: number[] = [];
