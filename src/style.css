@@ -982,8 +982,8 @@ body.edit button {
   color: var(--phos-bright);
 }
 
-/* 窄卡：盘名一行、数值换行到下一行 */
-@container widget (width < 300px) {
+/* 窄卡：盘名一行、数值换行到下一行（盘名+数值单行需 ~420px） */
+@container widget (width < 420px) {
   .dh-row {
     grid-template-columns: 1fr;
     row-gap: 2px;
