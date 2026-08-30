@@ -19,6 +19,7 @@ public sealed class MainForm : Form
     private Config _cfg;
     private readonly WebView2 _web = new();
     private Scheduler _scheduler = null!;
+    private ScopeSampler? _scopeSampler;
     private readonly System.Windows.Forms.Timer _timer = new();
     private List<ThemeFile> _themes;
     private readonly List<string> _pluginScripts;
@@ -40,6 +41,7 @@ public sealed class MainForm : Form
         _pluginCollectors = pluginCollectors;
         _tray = new TrayService(this, () => Array.IndexOf(Screen.AllScreens, PickScreen()));
         _scheduler = BuildScheduler();
+        if (IsScopeTheme) _scopeSampler = new ScopeSampler(_cfg.ScopeMetric);
 
         FormBorderStyle = FormBorderStyle.None;
         Text = "CRT-Monitor"; // 窗口化时 Alt+Tab 有名字
@@ -53,7 +55,7 @@ public sealed class MainForm : Form
         _web.DefaultBackgroundColor = Color.Black; // 同上：控件自身的默认底色
         Controls.Add(_web);
 
-        _timer.Interval = Math.Max(250, _cfg.RefreshMs);
+        _timer.Interval = SamplingInterval;
         _timer.Tick += (s, e) => PushTick();
 
         Load += async (_, _) => await InitWebViewAsync();
@@ -63,6 +65,7 @@ public sealed class MainForm : Form
         {
             _timer.Stop();
             _scheduler.Dispose();
+            _scopeSampler?.Dispose();
             _lhm?.Dispose();
             _spectrum?.Dispose();
             _history.Dispose();
@@ -318,6 +321,15 @@ public sealed class MainForm : Form
     /// <summary>按当前 _cfg 组装采集器列表并创建调度器（LHM/频谱实例复用，历史共享）。</summary>
     private Scheduler BuildScheduler()
     {
+        if (IsScopeTheme)
+        {
+            // scope 运行时由 ScopeSampler 单独采样，完整仪表盘采集器完全不启动。
+            _lhm?.Dispose();
+            _lhm = null;
+            _spectrum?.Dispose();
+            _spectrum = null;
+            return new Scheduler(new List<ICollector>(), _cfg, msg => _tray.ShowBalloon("CRT-Monitor 告警", msg), _history);
+        }
         if (_cfg.Lhm && _lhm is null) _lhm = new LhmCollector(enabled: true);
         if (!_cfg.Lhm) { _lhm?.Dispose(); _lhm = null; }
         if (_cfg.Spectrum && _spectrum is null) _spectrum = new SpectrumCollector(enabled: true);
@@ -343,6 +355,22 @@ public sealed class MainForm : Form
         return new Scheduler(collectors, _cfg, msg => _tray.ShowBalloon("CRT-Monitor 告警", msg), _history);
     }
 
+    private bool IsScopeTheme => string.Equals(_cfg.Theme, "scope", StringComparison.OrdinalIgnoreCase);
+    private int SamplingInterval => IsScopeTheme ? 50 : Math.Max(250, _cfg.RefreshMs);
+
+    /// <summary>主题/设置变化后重建当前采样路径；scope 不启动完整仪表盘采集。</summary>
+    private void RebuildSampling()
+    {
+        _timer.Stop();
+        _scopeSampler?.Dispose();
+        _scopeSampler = null;
+        _scheduler.Dispose();
+        _scheduler = BuildScheduler();
+        if (IsScopeTheme) _scopeSampler = new ScopeSampler(_cfg.ScopeMetric);
+        _timer.Interval = SamplingInterval;
+        _timer.Start();
+    }
+
     /// <summary>设置面板保存：合并写回 config.json → 重建调度器/远看服务 → 重发 config。</summary>
     private void ApplySettings(JsonElement partial)
     {
@@ -352,11 +380,7 @@ public sealed class MainForm : Form
             int oldPort = _cfg.WebPort;
             _cfg = ConfigStore.Load();
 
-            _timer.Stop();
-            _scheduler.Dispose();
-            _scheduler = BuildScheduler();
-            _timer.Interval = Math.Max(250, _cfg.RefreshMs);
-            _timer.Start();
+            RebuildSampling();
 
             if (_cfg.WebPort != oldPort)
             {
@@ -468,7 +492,7 @@ public sealed class MainForm : Form
         {
             ["type"] = "config",
             ["theme"] = _cfg.Theme,
-            ["refresh_ms"] = _cfg.RefreshMs,
+            ["refresh_ms"] = SamplingInterval,
             ["effects"] = _cfg.Effects is null ? null : new Dictionary<string, object?>
             {
                 ["scanline"] = _cfg.Effects.Scanline,
@@ -524,6 +548,7 @@ public sealed class MainForm : Form
                     {
                         ConfigStore.SetValue("theme", System.Text.Json.Nodes.JsonValue.Create(themeEl.GetString()));
                         _cfg = ConfigStore.Load();
+                        RebuildSampling();
                         _web.CoreWebView2?.PostWebMessageAsJson(ConfigMessageJson());
                         Program.Log($"theme -> {themeEl.GetString()}");
                     }
@@ -534,6 +559,7 @@ public sealed class MainForm : Form
                     {
                         ConfigStore.SetValue("scope_metric", System.Text.Json.Nodes.JsonValue.Create(metricEl.GetString()));
                         _cfg = ConfigStore.Load();
+                        RebuildSampling();
                         _web.CoreWebView2?.PostWebMessageAsJson(ConfigMessageJson());
                         Program.Log($"scope metric -> {metricEl.GetString()}");
                     }
@@ -619,15 +645,15 @@ public sealed class MainForm : Form
     private void PushTick()
     {
         if (_web.CoreWebView2 is not { } core) return;
-        string? json = _scheduler.CollectJson();
+        string? json = IsScopeTheme ? _scopeSampler?.CollectJson() : _scheduler.CollectJson();
         if (json is not null)
         {
             _lastTickJson = json; // Web 远看复用同一份，避免并发采集
             core.PostWebMessageAsJson(json);
-            if (json.Contains("\"cpu\":") && _scheduler.LastCpuPercent is { } cpu)
+            if (!IsScopeTheme && json.Contains("\"cpu\":") && _scheduler.LastCpuPercent is { } cpu)
                 _tray.UpdateCpu(cpu);
         }
-        if (_scheduler.ShouldPushHistory() && _scheduler.HistoryJson() is { } history)
+        if (!IsScopeTheme && _scheduler.ShouldPushHistory() && _scheduler.HistoryJson() is { } history)
             core.PostWebMessageAsJson(history);
     }
 }

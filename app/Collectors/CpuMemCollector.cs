@@ -15,7 +15,7 @@ public sealed class CpuMemCollector : ICollector
 
     public void Poll(TickDto tick)
     {
-        PollCpu(tick);
+        PollCpu(tick, includeFrequency: true);
         PollMem(tick);
         // 系统开机时长（不是本进程运行时长）
         long uptimeSec = (long)(GetTickCount64() / 1000);
@@ -27,6 +27,12 @@ public sealed class CpuMemCollector : ICollector
         };
         tick.Host = GetHost(tick.Host);
     }
+
+    /// <summary>示波器专用：只取总 CPU 占用，跳过频率/主机/启动信息。</summary>
+    public void PollCpuOnly(TickDto tick) => PollCpu(tick, includeFrequency: false);
+
+    /// <summary>示波器专用：只取内存快照。</summary>
+    public void PollMemOnly(TickDto tick) => PollMem(tick);
 
     /// <summary>上次正常关机时间：HKLM\...\Windows\ShutdownTime（FILETIME），读一次缓存。</summary>
     private long GetLastShutdown()
@@ -47,7 +53,7 @@ public sealed class CpuMemCollector : ICollector
         return _lastShutdown.Value;
     }
 
-    private void PollCpu(TickDto tick)
+    private void PollCpu(TickDto tick, bool includeFrequency)
     {
         var (idle, busy) = NativeMethods.QueryProcessorTimes();
         if (idle.Length == 0) return;
@@ -69,12 +75,13 @@ public sealed class CpuMemCollector : ICollector
         _prevIdle = idle;
         _prevBusy = busy;
 
-        var freqs = NativeMethods.QueryCoreFrequencies();
         tick.Metrics.Cpu = new CpuDto
         {
             Usage = Math.Round(sum / idle.Length, 1),
             Cores = cores,
-            FreqMhz = freqs.Length > 0 ? freqs.Max() : null,
+            FreqMhz = includeFrequency
+                ? NativeMethods.QueryCoreFrequencies().DefaultIfEmpty().Max() is long freq and > 0 ? freq : null
+                : null,
         };
     }
 

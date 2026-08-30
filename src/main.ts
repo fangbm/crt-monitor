@@ -28,7 +28,7 @@ import "./widgets/gpu";
 import "./widgets/boot";
 import "./widgets/spectrum";
 import "./widgets/diskhealth";
-import { currentScopeMetric, scopeMetricIds, scopeMetricLabel, setScopeMetric, setScopeRefreshMs } from "./widgets/scope";
+import { currentScopeMetric, scopeMetricIds, scopeMetricLabel, setScopeMetric } from "./widgets/scope";
 
 const LOGO = String.raw`  ____ ____  ____    ____
  / ___/ ___||  _ \  |  _ \ ___  __ _ _   _  ___
@@ -863,7 +863,6 @@ function applyConfig(c: ShellConfig): void {
   currentTheme = c.theme;
   const scopeModeChanged = setScopeMode(c.theme);
   const scopeMetricChanged = setScopeMetric(c.scope_metric);
-  setScopeRefreshMs(c.refresh_ms);
   applyTheme(c.theme);
   applyEffects(c);
   shellBurnin = c.burnin;

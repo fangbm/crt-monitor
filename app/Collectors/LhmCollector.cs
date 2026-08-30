@@ -7,10 +7,12 @@ namespace CrtMonitor.Collectors;
 public sealed class LhmCollector : ICollector, IDisposable
 {
     private Computer? _computer;
+    private readonly bool _scopeOnly;
 
-    public LhmCollector(bool enabled)
+    public LhmCollector(bool enabled, bool scopeOnly = false)
     {
         if (!enabled) return;
+        _scopeOnly = scopeOnly;
         // Open() 可能耗时 1-3s（枚举 SMBus/存储），放后台线程避免卡首个 tick
         Program.Log("LHM init v2");
         Start();
@@ -26,7 +28,7 @@ public sealed class LhmCollector : ICollector, IDisposable
                 {
                     IsCpuEnabled = true,
                     IsGpuEnabled = true,
-                    IsStorageEnabled = true,
+                    IsStorageEnabled = !_scopeOnly,
                 };
                 computer.Open();
                 _computer = computer;
@@ -128,6 +130,50 @@ public sealed class LhmCollector : ICollector, IDisposable
         }
         tick.Metrics.Sensors = dto;
         tick.Metrics.Smart = smart;
+    }
+
+    /// <summary>示波器专用：仅轮询所选 CPU 或 GPU 温度，不扫描 SMART、负载或其余硬件。</summary>
+    public void PollScopeTemperature(TickDto tick, bool cpu)
+    {
+        var dto = new SensorsDto();
+        var computer = _computer;
+        if (computer is null)
+        {
+            tick.Metrics.Sensors = dto;
+            return;
+        }
+        try
+        {
+            foreach (var hw in computer.Hardware)
+            {
+                bool matched = cpu ? hw.HardwareType == HardwareType.Cpu
+                    : hw.HardwareType is HardwareType.GpuNvidia or HardwareType.GpuAmd or HardwareType.GpuIntel;
+                if (!matched) continue;
+                hw.Update();
+                foreach (var sub in hw.SubHardware) sub.Update();
+                var temps = hw.Sensors.Concat(hw.SubHardware.SelectMany(s => s.Sensors))
+                    .Where(s => s.SensorType == SensorType.Temperature && s.Value is > 0)
+                    .ToList();
+                if (cpu)
+                {
+                    var preferred = temps.FirstOrDefault(s => s.Name.Contains("Package"))
+                        ?? temps.FirstOrDefault(s => s.Name.Contains("Tctl"))
+                        ?? temps.FirstOrDefault();
+                    if (preferred?.Value is { } value) dto.CpuTemp = Math.Round(value, 1);
+                }
+                else
+                {
+                    dto.GpuName = hw.Name;
+                    if (temps.FirstOrDefault()?.Value is { } value) dto.GpuTemp = Math.Round(value, 1);
+                }
+                break;
+            }
+        }
+        catch (Exception ex)
+        {
+            Program.Log($"LHM scope poll failed: {ex.Message}");
+        }
+        tick.Metrics.Sensors = dto;
     }
 
     public void Dispose()

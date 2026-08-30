@@ -49,8 +49,6 @@ const METRICS: Record<ScopeMetric, MetricDef> = {
 };
 
 let selectedMetric: ScopeMetric = "cpu.usage";
-let refreshMs = 1000;
-const DISPLAY_SAMPLE_MS = 50;
 const SWEEP_CAPACITY = 200;
 
 export function scopeMetricIds(): ScopeMetric[] {
@@ -59,10 +57,6 @@ export function scopeMetricIds(): ScopeMetric[] {
 
 export function currentScopeMetric(): ScopeMetric {
   return selectedMetric;
-}
-
-export function setScopeRefreshMs(ms: number | undefined): void {
-  refreshMs = Number.isFinite(ms) && (ms ?? 0) > 0 ? ms! : 1000;
 }
 
 export function setScopeMetric(metric: string | undefined): boolean {
@@ -99,13 +93,13 @@ registerWidget({
     const canvas = el("canvas", "scope-canvas");
     const foot = el("div", "scope-foot");
     const vertical = el("span", "", "VERT —");
-    const time = el("span", "", fmtTime((DISPLAY_SAMPLE_MS / 1000) * (SWEEP_CAPACITY / 10)));
+    const time = el("span", "", fmtTime(1));
     const average = el("span", "", "AVG —");
     const peak = el("span", "", "PEAK —");
     const run = el("span", "scope-run", "● RUN");
     foot.append(vertical, time, average, peak, run);
     host.append(head, canvas, foot);
-    // 20Hz 显示重采样：10 秒扫过 10 格，后端仍按真实 refresh_ms 采集。
+    // 壳端专用采集器按 20Hz 推送：10 秒扫过 10 格，全部是真实样本。
     const capacity = SWEEP_CAPACITY;
     const scope = new Scope(canvas, {
       channels: 1,
@@ -113,15 +107,10 @@ registerWidget({
       capacity,
       oscilloscope: true,
       persistence: 1,
-      persistenceMs: capacity * DISPLAY_SAMPLE_MS,
+      persistenceMs: 10_000,
       beam: true,
     });
     const samples: number[] = [];
-    let displayed: number | null = null;
-    let target: number | null = null;
-    let interpolationStart = 0;
-    let interpolationFrom = 0;
-
     const drawSample = (next: number) => {
       samples.push(next);
       if (samples.length > capacity) samples.shift();
@@ -134,29 +123,16 @@ registerWidget({
       scope.push([next]);
     };
 
-    const sampler = window.setInterval(() => {
-      if (target === null) return;
-      if (displayed === null) displayed = target;
-      const elapsed = performance.now() - interpolationStart;
-      const ratio = Math.min(1, elapsed / Math.max(DISPLAY_SAMPLE_MS, refreshMs));
-      displayed = interpolationFrom + (target - interpolationFrom) * ratio;
-      drawSample(displayed);
-    }, DISPLAY_SAMPLE_MS);
-
     return {
       update(m: MetricsTick) {
         const current = metric.read(m);
         if (current === null || !Number.isFinite(current)) {
-          target = null;
           value.textContent = "NO SENSOR DATA";
           return;
         }
-        interpolationFrom = displayed ?? current;
-        target = current;
-        interpolationStart = performance.now();
+        drawSample(current);
       },
       destroy() {
-        window.clearInterval(sampler);
         scope.dispose();
       },
     };
