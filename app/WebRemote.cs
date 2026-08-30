@@ -115,16 +115,21 @@ public sealed class WebRemote : IDisposable
 
     private async Task ServeSse(NetworkStream stream)
     {
-        string head = "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nCache-Control: no-cache\r\nConnection: keep-alive\r\n\r\n";
-        byte[] headBytes = Encoding.UTF8.GetBytes(head);
-        await stream.WriteAsync(headBytes);
-        await stream.FlushAsync();
-        lock (_gate) _sseClients.Add(stream);
-        // 首条 config 即时下发（远端页面打开即有主题/布局）
-        byte[] cfg = Encoding.UTF8.GetBytes($"data: {_config() ?? "{}"}\n\n");
-        await stream.WriteAsync(cfg);
-        await stream.FlushAsync();
-        // 不挂起本任务：连接由 PushToSse 驱动，断开时其写失败 → 移除并释放
+        try
+        {
+            string head = "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nCache-Control: no-cache\r\nConnection: keep-alive\r\n\r\n";
+            byte[] headBytes = Encoding.UTF8.GetBytes(head);
+            await stream.WriteAsync(headBytes);
+            await stream.FlushAsync();
+            byte[] cfg = Encoding.UTF8.GetBytes($"data: {_config() ?? "{}"}\n\n");
+            await stream.WriteAsync(cfg);
+            await stream.FlushAsync();
+            lock (_gate) _sseClients.Add(stream); // 加入成功后由 PushToSse 驱动与清理
+        }
+        catch
+        {
+            try { stream.Dispose(); } catch { }
+        }
     }
 
     private async void PushToSse()

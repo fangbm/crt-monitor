@@ -363,6 +363,9 @@ public sealed class MainForm : Form
                 }
             }
 
+            // 自启动开关也在设置面板里：注册表同步（A 键走的是另一条命令）
+            Program.ApplyAutostart(_cfg.Autostart ?? false);
+
             Program.Log("settings applied");
             _web.CoreWebView2?.PostWebMessageAsJson(ConfigMessageJson());
         }

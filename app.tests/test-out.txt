@@ -1,5 +1,6 @@
   正在确定要还原的项目…
-  所有项目均是最新的，无法还原。
+  已还原 C:\Users\fangb\Documents\zcode\crt\app.tests\CrtMonitor.Tests.csproj (用时 786 毫秒)。
+  1 个项目(共 2 个)是最新的，无法还原。
 C:\Users\fangb\.tools\dotnet\sdk\8.0.424\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277: 发现无法解析的“WindowsBase”的不同版本之间存在冲突。 [C:\Users\fangb\Documents\zcode\crt\app\CrtMonitor.csproj]
 C:\Users\fangb\.tools\dotnet\sdk\8.0.424\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277: “WindowsBase, Version=4.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35”与“WindowsBase, Version=5.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35”之间存在冲突。 [C:\Users\fangb\Documents\zcode\crt\app\CrtMonitor.csproj]
 C:\Users\fangb\.tools\dotnet\sdk\8.0.424\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:     已选择“WindowsBase, Version=4.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35”，因为它是主版本而“WindowsBase, Version=5.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35”不是。 [C:\Users\fangb\Documents\zcode\crt\app\CrtMonitor.csproj]
@@ -11,6 +12,8 @@ C:\Users\fangb\.tools\dotnet\sdk\8.0.424\Microsoft.Common.CurrentVersion.targets
 C:\Users\fangb\.tools\dotnet\sdk\8.0.424\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:         C:\Users\fangb\.nuget\packages\microsoft.web.webview2\1.0.2903.40\lib_manual\net5.0-windows10.0.17763.0\Microsoft.Web.WebView2.Wpf.dll [C:\Users\fangb\Documents\zcode\crt\app\CrtMonitor.csproj]
 C:\Users\fangb\.tools\dotnet\sdk\8.0.424\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:           导致引用“C:\Users\fangb\.nuget\packages\microsoft.web.webview2\1.0.2903.40\lib_manual\net5.0-windows10.0.17763.0\Microsoft.Web.WebView2.Wpf.dll”的项目文件项 Include 特性。 [C:\Users\fangb\Documents\zcode\crt\app\CrtMonitor.csproj]
 C:\Users\fangb\.tools\dotnet\sdk\8.0.424\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:             C:\Users\fangb\.nuget\packages\microsoft.web.webview2\1.0.2903.40\buildTransitive\..\\lib_manual\net5.0-windows10.0.17763.0\Microsoft.Web.WebView2.Wpf.dll [C:\Users\fangb\Documents\zcode\crt\app\CrtMonitor.csproj]
+C:\Users\fangb\Documents\zcode\crt\app\TrayService.cs(79,9): warning CS8602: 解引用可能出现空引用。 [C:\Users\fangb\Documents\zcode\crt\app\CrtMonitor.csproj]
+C:\Users\fangb\Documents\zcode\crt\app\MainForm.cs(32,18): warning CS0414: 字段“MainForm._userHidden”已被赋值，但从未使用过它的值 [C:\Users\fangb\Documents\zcode\crt\app\CrtMonitor.csproj]
   CrtMonitor -> C:\Users\fangb\Documents\zcode\crt\app\bin\Debug\net8.0-windows10.0.19041.0\CrtMonitor.dll
 C:\Users\fangb\.tools\dotnet\sdk\8.0.424\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277: 发现无法解析的“WindowsBase”的不同版本之间存在冲突。 [C:\Users\fangb\Documents\zcode\crt\app.tests\CrtMonitor.Tests.csproj]
 C:\Users\fangb\.tools\dotnet\sdk\8.0.424\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277: “WindowsBase, Version=4.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35”与“WindowsBase, Version=5.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35”之间存在冲突。 [C:\Users\fangb\Documents\zcode\crt\app.tests\CrtMonitor.Tests.csproj]
@@ -31,4 +34,4 @@ VSTest 版本 17.11.1 (x64)
 正在启动测试执行，请稍候...
 总共 1 个测试文件与指定模式相匹配。
 
-已通过! - 失败:     0，通过:    14，已跳过:     0，总计:    14，持续时间: 118 ms - CrtMonitor.Tests.dll (net8.0)
+已通过! - 失败:     0，通过:    14，已跳过:     0，总计:    14，持续时间: 111 ms - CrtMonitor.Tests.dll (net8.0)
