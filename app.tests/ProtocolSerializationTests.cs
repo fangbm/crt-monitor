@@ -92,6 +92,6 @@ public class ProtocolSerializationTests
         Assert.Equal(1, tick!.Metrics.Cpu.Usage);
         Assert.Equal(2, tick.Metrics.Cpu.Cores.Count);
         Assert.Equal(2, tick.Metrics.Cpu.CoresTemp!.Count);
-        Assert.Equal(1, tick.Metrics.Net.Nics.Count);
+        Assert.Single(tick.Metrics.Net.Nics);
     }
 }

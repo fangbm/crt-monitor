@@ -76,8 +76,10 @@ public sealed class TrayService : IDisposable
         int p = (int)Math.Round(percent / 10) * 10;
         if (p == _lastPercent) return;
         _lastPercent = p;
-        _icon.Icon.Dispose();
+        // NotifyIcon.Icon 可空；先替换再释放旧图标，避免空引用和短暂无图标。
+        Icon? oldIcon = _icon.Icon;
         _icon.Icon = MakeIcon(Math.Clamp(p, 0, 100));
+        oldIcon?.Dispose();
         _icon.Text = $"CRT-Monitor  CPU {Math.Round(percent)}%";
     }
 

@@ -29,7 +29,6 @@ public sealed class MainForm : Form
     private WebRemote? _webRemote;
     private readonly TrayService _tray;
     private bool _fullscreen = true;
-    private bool _userHidden;
     private Rectangle _restoreBounds;
 
     public MainForm(Config cfg)
@@ -144,7 +143,6 @@ public sealed class MainForm : Form
     private void HideToTray()
     {
         _restoreBounds = Bounds;
-        _userHidden = true;
         Hide();
     }
 

@@ -1,0 +1,9 @@
+<Project>
+  <!-- WebView2 的 NuGet targets 会给所有 .NET 5+ 项目附加 WPF DLL；本仓库仅使用 WinForms。
+       在所有项目（包括 xUnit）移除该无关引用，避免 WindowsBase 4.0/5.0 冲突警告。 -->
+  <Target Name="RemoveUnusedWebView2WpfReference" BeforeTargets="ResolveAssemblyReferences">
+    <ItemGroup>
+      <Reference Remove="@(Reference)" Condition="'%(Reference.Filename)' == 'Microsoft.Web.WebView2.Wpf'" />
+    </ItemGroup>
+  </Target>
+</Project>
