@@ -65,7 +65,7 @@ public sealed class AlertEvaluator
                 if (_sound) Beep(880, 300);
                 _notify?.Invoke(msg);
                 _history.Insert(0, new AlertEntryDto { Ts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), Msg = msg });
-                if (_history.Count > KeepEntries) _history.RemoveAt(_history.Count);
+                if (_history.Count > KeepEntries) _history.RemoveAt(_history.Count - 1);
                 Save();
                 _state[i] = new State(since, now);
             }

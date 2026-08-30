@@ -50,6 +50,8 @@ const METRICS: Record<ScopeMetric, MetricDef> = {
 
 let selectedMetric: ScopeMetric = "cpu.usage";
 let refreshMs = 1000;
+const DISPLAY_SAMPLE_MS = 50;
+const SWEEP_CAPACITY = 200;
 
 export function scopeMetricIds(): ScopeMetric[] {
   return Object.keys(METRICS) as ScopeMetric[];
@@ -97,42 +99,64 @@ registerWidget({
     const canvas = el("canvas", "scope-canvas");
     const foot = el("div", "scope-foot");
     const vertical = el("span", "", "VERT —");
-    const time = el("span", "", fmtTime((refreshMs / 1000) * 10));
+    const time = el("span", "", fmtTime((DISPLAY_SAMPLE_MS / 1000) * (SWEEP_CAPACITY / 10)));
     const average = el("span", "", "AVG —");
     const peak = el("span", "", "PEAK —");
     const run = el("span", "scope-run", "● RUN");
     foot.append(vertical, time, average, peak, run);
     host.append(head, canvas, foot);
-    // 默认 1 秒刷新时约 30 秒扫完一轮，能明显看到完整的左→右扫描。
-    const capacity = Math.max(12, Math.round(30_000 / refreshMs));
+    // 20Hz 显示重采样：10 秒扫过 10 格，后端仍按真实 refresh_ms 采集。
+    const capacity = SWEEP_CAPACITY;
     const scope = new Scope(canvas, {
       channels: 1,
       fixedMax: metric.fixedMax,
       capacity,
       oscilloscope: true,
       persistence: 1,
+      persistenceMs: capacity * DISPLAY_SAMPLE_MS,
       beam: true,
     });
     const samples: number[] = [];
+    let displayed: number | null = null;
+    let target: number | null = null;
+    let interpolationStart = 0;
+    let interpolationFrom = 0;
+
+    const drawSample = (next: number) => {
+      samples.push(next);
+      if (samples.length > capacity) samples.shift();
+      const max = metric.fixedMax ?? Math.max(1, ...samples) * 1.15;
+      const avg = samples.reduce((sum, sample) => sum + sample, 0) / samples.length;
+      value.textContent = metric.format(next);
+      vertical.textContent = `VERT ${metric.formatDiv?.(max / 8) ?? fmtDiv(max / 8, metric.unit)}`;
+      average.textContent = `AVG ${metric.format(avg)}`;
+      peak.textContent = `PEAK ${metric.format(Math.max(...samples))}`;
+      scope.push([next]);
+    };
+
+    const sampler = window.setInterval(() => {
+      if (target === null) return;
+      if (displayed === null) displayed = target;
+      const elapsed = performance.now() - interpolationStart;
+      const ratio = Math.min(1, elapsed / Math.max(DISPLAY_SAMPLE_MS, refreshMs));
+      displayed = interpolationFrom + (target - interpolationFrom) * ratio;
+      drawSample(displayed);
+    }, DISPLAY_SAMPLE_MS);
 
     return {
       update(m: MetricsTick) {
         const current = metric.read(m);
         if (current === null || !Number.isFinite(current)) {
+          target = null;
           value.textContent = "NO SENSOR DATA";
           return;
         }
-        samples.push(current);
-        if (samples.length > capacity) samples.shift();
-        const max = metric.fixedMax ?? Math.max(1, ...samples) * 1.15;
-        const avg = samples.reduce((sum, sample) => sum + sample, 0) / samples.length;
-        value.textContent = metric.format(current);
-        vertical.textContent = `VERT ${metric.formatDiv?.(max / 8) ?? fmtDiv(max / 8, metric.unit)}`;
-        average.textContent = `AVG ${metric.format(avg)}`;
-        peak.textContent = `PEAK ${metric.format(Math.max(...samples))}`;
-        scope.push([current]);
+        interpolationFrom = displayed ?? current;
+        target = current;
+        interpolationStart = performance.now();
       },
       destroy() {
+        window.clearInterval(sampler);
         scope.dispose();
       },
     };

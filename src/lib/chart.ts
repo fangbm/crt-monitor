@@ -9,6 +9,8 @@ export interface ScopeOptions {
   oscilloscope?: boolean;
   /** 保留最近 N 帧波形，绘出短暂磷光余辉。 */
   persistence?: number;
+  /** 单轮扫描余辉从亮到暗完全消失的时长。 */
+  persistenceMs?: number;
   /** 在最新曲线的右端绘制电子束亮点。 */
   beam?: boolean;
 }
@@ -22,6 +24,7 @@ export class Scope {
   private frames: number[][][] = [];
   private sweep: number[][] | null = null;
   private previousSweep: number[][] | null = null;
+  private previousSweepAt = 0;
   private sweepCursor = 0;
 
   constructor(canvas: HTMLCanvasElement, opts: ScopeOptions) {
@@ -46,6 +49,7 @@ export class Scope {
     this.frames = [];
     this.sweep = null;
     this.previousSweep = null;
+    this.previousSweepAt = 0;
   }
 
   get capacity(): number {
@@ -78,6 +82,7 @@ export class Scope {
     // 当前束扫完最右端后，下一拍才回到左端；上一整轮留作唯一余辉。
     if (this.sweepCursor >= this.capacity) {
       this.previousSweep = this.sweep.map((channel) => [...channel]);
+      this.previousSweepAt = performance.now();
       this.sweep = Array.from({ length: this.opts.channels }, () => Array(this.capacity).fill(Number.NaN));
       this.sweepCursor = 0;
     }
@@ -109,8 +114,12 @@ export class Scope {
 
     if (this.opts.oscilloscope && this.sweep) {
       if (this.previousSweep) {
-        ctx.globalAlpha = 0.22;
-        this.drawSweep(this.previousSweep, max, w, h, phos, dim);
+        const lifetime = this.opts.persistenceMs ?? 1_000;
+        const fade = Math.max(0, 1 - (performance.now() - this.previousSweepAt) / lifetime);
+        if (fade > 0) {
+          ctx.globalAlpha = 0.28 * fade * fade;
+          this.drawSweep(this.previousSweep, max, w, h, phos, dim);
+        }
       }
       ctx.globalAlpha = 1;
       this.drawSweep(this.sweep, max, w, h, phos, dim);
