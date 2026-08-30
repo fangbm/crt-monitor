@@ -28,7 +28,7 @@ import "./widgets/gpu";
 import "./widgets/boot";
 import "./widgets/spectrum";
 import "./widgets/diskhealth";
-import { scopeMetricLabel, setScopeMetric } from "./widgets/scope";
+import { currentScopeMetric, scopeMetricIds, scopeMetricLabel, setScopeMetric, setScopeRefreshMs } from "./widgets/scope";
 
 const LOGO = String.raw`  ____ ____  ____    ____
  / ___/ ___||  _ \  |  _ \ ___  __ _ _   _  ___
@@ -824,6 +824,17 @@ function applyEffects(cfg: ShellConfig): void {
   setDefaultEffects(cfg.effects ?? undefined);
 }
 
+function cycleScopeMetric(delta: number): void {
+  if (currentTheme !== "scope") return;
+  const ids = scopeMetricIds();
+  const current = ids.indexOf(currentScopeMetric());
+  const next = ids[(current + delta + ids.length) % ids.length];
+  if (!setScopeMetric(next)) return;
+  mountPage(currentPage);
+  postCommand("set-scope-metric", next);
+  flashHint(`CH1: ${scopeMetricLabel()}`);
+}
+
 /** 示波器主题不显示常规页头和卡片框，改为一块全屏曲线。 */
 function setScopeMode(theme: string): boolean {
   const enabled = theme === "scope";
@@ -852,6 +863,7 @@ function applyConfig(c: ShellConfig): void {
   currentTheme = c.theme;
   const scopeModeChanged = setScopeMode(c.theme);
   const scopeMetricChanged = setScopeMetric(c.scope_metric);
+  setScopeRefreshMs(c.refresh_ms);
   applyTheme(c.theme);
   applyEffects(c);
   shellBurnin = c.burnin;
@@ -949,9 +961,13 @@ let __lastAt = 0;
     postCommand("toggle-autostart");
   } else if (code === "KeyT") {
     cycleTheme();
-    } else if (code === "KeyP") {
-      cycleProfile();
-    } else if (code === "Digit1") switchTheme("green");
+  } else if (code === "ArrowUp") {
+    cycleScopeMetric(1);
+  } else if (code === "ArrowDown") {
+    cycleScopeMetric(-1);
+  } else if (code === "KeyP") {
+    cycleProfile();
+  } else if (code === "Digit1") switchTheme("green");
   else if (code === "Digit2") switchTheme("amber");
   else if (code === "Digit3") switchTheme("white");
 };
@@ -974,7 +990,9 @@ function bindHotkeys(): void {
       toggleHelp();
       return;
     }
-    if (e.key === "F11" || e.key === "Tab") e.preventDefault();
+    if ((e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement)
+        && (e.key === "ArrowUp" || e.key === "ArrowDown")) return;
+    if (e.key === "F11" || e.key === "Tab" || (currentTheme === "scope" && (e.key === "ArrowUp" || e.key === "ArrowDown"))) e.preventDefault();
     (globalThis as Record<string, unknown>).__shiftTab = e.shiftKey;
     ((globalThis as Record<string, unknown>).__hotkey as (c: string, k?: string) => void)(e.code, e.key);
   });

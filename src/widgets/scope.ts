@@ -10,6 +10,7 @@ interface MetricDef {
   fixedMax?: number;
   read: (m: MetricsTick) => number | null;
   format: (value: number) => string;
+  formatDiv?: (value: number) => string;
 }
 
 const METRICS: Record<ScopeMetric, MetricDef> = {
@@ -27,11 +28,13 @@ const METRICS: Record<ScopeMetric, MetricDef> = {
     label: "NETWORK RECEIVE", unit: "/s",
     read: (m) => m.metrics.net.rx_bps,
     format: fmtRate,
+    formatDiv: (v) => `${fmtRate(v)}/DIV`,
   },
   "net.tx_bps": {
     label: "NETWORK TRANSMIT", unit: "/s",
     read: (m) => m.metrics.net.tx_bps,
     format: fmtRate,
+    formatDiv: (v) => `${fmtRate(v)}/DIV`,
   },
   "sensors.cpu_temp": {
     label: "CPU TEMPERATURE", unit: "°C", fixedMax: 100,
@@ -46,6 +49,19 @@ const METRICS: Record<ScopeMetric, MetricDef> = {
 };
 
 let selectedMetric: ScopeMetric = "cpu.usage";
+let refreshMs = 1000;
+
+export function scopeMetricIds(): ScopeMetric[] {
+  return Object.keys(METRICS) as ScopeMetric[];
+}
+
+export function currentScopeMetric(): ScopeMetric {
+  return selectedMetric;
+}
+
+export function setScopeRefreshMs(ms: number | undefined): void {
+  refreshMs = Number.isFinite(ms) && (ms ?? 0) > 0 ? ms! : 1000;
+}
 
 export function setScopeMetric(metric: string | undefined): boolean {
   const next = metric && metric in METRICS ? metric as ScopeMetric : "cpu.usage";
@@ -58,6 +74,16 @@ export function scopeMetricLabel(): string {
   return METRICS[selectedMetric].label;
 }
 
+function fmtDiv(value: number, unit: string): string {
+  const digits = value >= 100 || value === Math.round(value) ? 0 : value >= 10 ? 1 : 2;
+  return `${value.toFixed(digits)} ${unit}/DIV`;
+}
+
+function fmtTime(seconds: number): string {
+  if (seconds < 1) return `${Math.round(seconds * 1000)} ms/DIV`;
+  return `${seconds.toFixed(seconds >= 10 ? 0 : 1)} SEC/DIV`;
+}
+
 registerWidget({
   id: "scope",
   title: "CRT Oscilloscope",
@@ -65,14 +91,28 @@ registerWidget({
     host.classList.add("scope-widget");
     const metric = METRICS[selectedMetric];
     const head = el("div", "scope-head");
-    const name = el("span", "scope-name", metric.label);
+    const name = el("span", "scope-name", `CH1 · ${metric.label}`);
     const value = el("span", "scope-value", "WAITING");
     head.append(name, value);
     const canvas = el("canvas", "scope-canvas");
     const foot = el("div", "scope-foot");
-    foot.append(el("span", "", "TIME →"), el("span", "", `SCALE ${metric.fixedMax ?? "AUTO"} ${metric.unit}`));
+    const vertical = el("span", "", "VERT —");
+    const time = el("span", "", fmtTime((refreshMs / 1000) * 10));
+    const average = el("span", "", "AVG —");
+    const peak = el("span", "", "PEAK —");
+    const run = el("span", "scope-run", "● RUN");
+    foot.append(vertical, time, average, peak, run);
     host.append(head, canvas, foot);
-    const scope = new Scope(canvas, { channels: 1, fixedMax: metric.fixedMax, capacity: 180 });
+    const capacity = 100;
+    const scope = new Scope(canvas, {
+      channels: 1,
+      fixedMax: metric.fixedMax,
+      capacity,
+      oscilloscope: true,
+      persistence: 4,
+      beam: true,
+    });
+    const samples: number[] = [];
 
     return {
       update(m: MetricsTick) {
@@ -81,7 +121,14 @@ registerWidget({
           value.textContent = "NO SENSOR DATA";
           return;
         }
+        samples.push(current);
+        if (samples.length > capacity) samples.shift();
+        const max = metric.fixedMax ?? Math.max(1, ...samples) * 1.15;
+        const avg = samples.reduce((sum, sample) => sum + sample, 0) / samples.length;
         value.textContent = metric.format(current);
+        vertical.textContent = `VERT ${metric.formatDiv?.(max / 8) ?? fmtDiv(max / 8, metric.unit)}`;
+        average.textContent = `AVG ${metric.format(avg)}`;
+        peak.textContent = `PEAK ${metric.format(Math.max(...samples))}`;
         scope.push([current]);
       },
       destroy() {

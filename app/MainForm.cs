@@ -468,6 +468,7 @@ public sealed class MainForm : Form
         {
             ["type"] = "config",
             ["theme"] = _cfg.Theme,
+            ["refresh_ms"] = _cfg.RefreshMs,
             ["effects"] = _cfg.Effects is null ? null : new Dictionary<string, object?>
             {
                 ["scanline"] = _cfg.Effects.Scanline,
@@ -525,6 +526,16 @@ public sealed class MainForm : Form
                         _cfg = ConfigStore.Load();
                         _web.CoreWebView2?.PostWebMessageAsJson(ConfigMessageJson());
                         Program.Log($"theme -> {themeEl.GetString()}");
+                    }
+                    break;
+                case "set-scope-metric":
+                    if (doc.RootElement.TryGetProperty("value", out var metricEl)
+                        && metricEl.ValueKind == JsonValueKind.String)
+                    {
+                        ConfigStore.SetValue("scope_metric", System.Text.Json.Nodes.JsonValue.Create(metricEl.GetString()));
+                        _cfg = ConfigStore.Load();
+                        _web.CoreWebView2?.PostWebMessageAsJson(ConfigMessageJson());
+                        Program.Log($"scope metric -> {metricEl.GetString()}");
                     }
                     break;
                 case "screenshot":

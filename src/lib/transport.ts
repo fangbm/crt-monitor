@@ -34,6 +34,7 @@ export interface ShellTheme {
 export interface ShellConfig {
   type: "config";
   theme: string;
+  refresh_ms?: number;
   effects?: {
     scanline?: number;
     flicker?: boolean;

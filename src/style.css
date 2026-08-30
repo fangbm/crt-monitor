@@ -188,6 +188,17 @@ body.scope-mode .widget.scope-widget {
   min-height: 2em;
   color: var(--phos-dim);
   border-top: 1px solid var(--phos-dim);
+  display: grid;
+  grid-template-columns: repeat(4, max-content) 1fr;
+  align-items: center;
+  gap: clamp(10px, 2vw, 32px);
+  letter-spacing: 0.08em;
+}
+
+.scope-run {
+  justify-self: end;
+  color: var(--phos-bright);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--phos) var(--glow), transparent);
 }
 
 #hd {
