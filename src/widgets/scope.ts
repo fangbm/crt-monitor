@@ -101,17 +101,25 @@ registerWidget({
     host.append(head, canvas, foot);
     // 壳端专用采集器按 20Hz 推送：10 秒扫过 10 格，全部是真实样本。
     const capacity = SWEEP_CAPACITY;
-    const scope = new Scope(canvas, {
-      channels: 1,
-      fixedMax: metric.fixedMax,
-      capacity,
-      oscilloscope: true,
-      persistence: 1,
-      persistenceMs: 10_000,
-      beam: true,
-    });
+    let scope: Scope | null = null;
     const samples: number[] = [];
-    const drawSample = (next: number) => {
+    const ensureScope = (m: MetricsTick): Scope => {
+      if (scope) return scope;
+      const channels = selectedMetric === "cpu.usage" ? Math.max(1, m.metrics.cpu.cores.length + 1) : 1;
+      if (selectedMetric === "cpu.usage" && m.metrics.cpu.cores.length > 0)
+        name.textContent = `CH1 · CPU USAGE · ${m.metrics.cpu.cores.length} CORES`;
+      scope = new Scope(canvas, {
+        channels,
+        fixedMax: metric.fixedMax,
+        capacity,
+        oscilloscope: true,
+        persistence: 1,
+        persistenceMs: 20_000,
+        beam: true,
+      });
+      return scope;
+    };
+    const drawSample = (next: number, waveform: number[], m: MetricsTick) => {
       samples.push(next);
       if (samples.length > capacity) samples.shift();
       const max = metric.fixedMax ?? Math.max(1, ...samples) * 1.15;
@@ -120,7 +128,7 @@ registerWidget({
       vertical.textContent = `VERT ${metric.formatDiv?.(max / 8) ?? fmtDiv(max / 8, metric.unit)}`;
       average.textContent = `AVG ${metric.format(avg)}`;
       peak.textContent = `PEAK ${metric.format(Math.max(...samples))}`;
-      scope.push([next]);
+      ensureScope(m).push(waveform);
     };
 
     return {
@@ -130,10 +138,13 @@ registerWidget({
           value.textContent = "NO SENSOR DATA";
           return;
         }
-        drawSample(current);
+        const waveform = selectedMetric === "cpu.usage"
+          ? [...m.metrics.cpu.cores, current]
+          : [current];
+        drawSample(current, waveform, m);
       },
       destroy() {
-        scope.dispose();
+        scope?.dispose();
       },
     };
   },
