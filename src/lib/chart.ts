@@ -11,6 +11,8 @@ export interface ScopeOptions {
   persistence?: number;
   /** 每个扫描点从采集时刻起完全消失的时长。 */
   persistenceMs?: number;
+  /** 余辉亮度曲线；小于 1 会让接近寿命末端的轨迹仍清晰可见。 */
+  persistenceGamma?: number;
   /** 在最新曲线的右端绘制电子束亮点。 */
   beam?: boolean;
 }
@@ -206,7 +208,10 @@ export class Scope {
     const stepX = w / (this.capacity - 1);
     const now = performance.now();
     const lifetime = this.opts.persistenceMs ?? 1_000;
-    const alphaAt = (at: number) => Math.max(0, 1 - (now - at) / lifetime);
+    const alphaAt = (at: number) => {
+      const remaining = Math.max(0, 1 - (now - at) / lifetime);
+      return Math.pow(remaining, this.opts.persistenceGamma ?? 1);
+    };
     frame.forEach((ch, ci) => {
       const isPrimary = ci === frame.length - 1 || frame.length === 1;
       ctx.strokeStyle = isPrimary ? phos : dim;
