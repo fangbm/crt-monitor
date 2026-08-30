@@ -176,21 +176,37 @@ public static class ConfigStore
         return new Config();
     }
 
-    /// <summary>布局拖拽后前端回传整份 pages（含当前页），合并写回 config.json（保留其他字段原样）。</summary>
-    public static void SavePages(List<PageConfig> pages)
+    /// <summary>布局拖拽后前端回传整份 pages（含当前页），合并写回 config.json（保留其他字段原样）。
+    /// 配置了 profile 时，写回对应 profile 的 pages，而不是误写到被忽略的顶层 pages。</summary>
+    public static void SavePages(List<PageConfig> pages, string? profileName = null)
     {
         try
         {
             string path = Candidates().FirstOrDefault(File.Exists) ?? DefaultPath;
-            System.Text.Json.Nodes.JsonNode? root =
-                File.Exists(path)
-                    ? System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(path))
-                    : new System.Text.Json.Nodes.JsonObject();
-            root!["pages"] = JsonSerializer.SerializeToNode(pages, ConfigJson.Web);
-            if (root.AsObject().ContainsKey("layout"))
-                root.AsObject().Remove("layout"); // pages 与 layout 互斥，避免歧义
+            var root = (File.Exists(path)
+                ? System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(path))
+                : new System.Text.Json.Nodes.JsonObject()) as System.Text.Json.Nodes.JsonObject
+                ?? new System.Text.Json.Nodes.JsonObject();
+            bool savedToProfile = false;
+            if (!string.IsNullOrWhiteSpace(profileName)
+                && root["profiles"] is System.Text.Json.Nodes.JsonArray profiles)
+            {
+                foreach (var node in profiles.OfType<System.Text.Json.Nodes.JsonObject>())
+                {
+                    if (!string.Equals(node["name"]?.GetValue<string>(), profileName, StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    node["pages"] = JsonSerializer.SerializeToNode(pages, ConfigJson.Web);
+                    savedToProfile = true;
+                    break;
+                }
+            }
+            if (!savedToProfile)
+            {
+                root["pages"] = JsonSerializer.SerializeToNode(pages, ConfigJson.Web);
+                root.Remove("layout"); // pages 与 layout 互斥，避免歧义
+            }
             File.WriteAllText(path, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
-            Program.Log($"pages saved: {string.Join(" | ", pages.Select(p => $"{p.Name} [{p.Widgets?.Count ?? 0} widgets]"))}");
+            Program.Log($"pages saved{(savedToProfile ? $" for profile {profileName}" : "")}: {string.Join(" | ", pages.Select(p => $"{p.Name} [{p.Widgets?.Count ?? 0} widgets]"))}");
         }
         catch (Exception ex)
         {

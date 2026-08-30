@@ -44,7 +44,9 @@ public sealed class DiskCollector : ICollector
                 try
                 {
                     if (row["Name"] is not string mount) continue;
-                    if (!byMount.TryGetValue(mount.TrimEnd(':'), out var disk)) continue;
+                    // DriveInfo 的 mount 与 PerfDisk LogicalDisk.Name 都是 "C:"；
+                    // 去掉冒号会让所有盘都无法匹配，读写速率始终显示为 "—"。
+                    if (!byMount.TryGetValue(mount, out var disk)) continue;
                     disk.ReadBps = ToDouble(row["DiskReadBytesPersec"]);
                     disk.WriteBps = ToDouble(row["DiskWriteBytesPersec"]);
                 }

@@ -109,7 +109,7 @@ http://<本机IP>:8080/
 
 ```powershell
 CrtMonitor.exe --serve
-# 数据暴露在 http://127.0.0.1:9123/metrics/（LAN 访问需防火墙放行 9123）
+# 数据暴露在 http://<本机IP>:9123/metrics/（LAN 访问需防火墙放行 9123）
 ```
 
 监控端副屏机器的 config.json：

@@ -261,13 +261,13 @@ public sealed class MainForm : Form
     {
         try
         {
-            var names = _cfg.Profiles?.Select(p => p.Name).ToList();
+            var names = _cfg.Profiles?.Where(p => !string.IsNullOrWhiteSpace(p.Name)).Select(p => p.Name).ToList();
             if (names is not { Count: > 1 })
             {
                 Program.Log("switch-profile: no profiles configured");
                 return;
             }
-            int idx = Math.Max(0, names.IndexOf(_cfg.Profile ?? ""));
+            int idx = Math.Max(0, names.FindIndex(n => string.Equals(n, ActiveProfileName(), StringComparison.OrdinalIgnoreCase)));
             string next = names[(idx + 1) % names.Count];
             ConfigStore.SetValue("profile", System.Text.Json.Nodes.JsonValue.Create(next));
             _cfg = ConfigStore.Load();
@@ -279,6 +279,19 @@ public sealed class MainForm : Form
             Program.Log($"switch profile failed: {ex.Message}");
         }
     }
+
+    /// <summary>有 profiles 时其 pages 优先；未指定或指定不存在时使用第一组有效预设。</summary>
+    private ProfileConfig? ActiveProfile()
+    {
+        var profiles = _cfg.Profiles;
+        if (profiles is not { Count: > 0 }) return null;
+        return profiles.FirstOrDefault(p => string.Equals(p.Name, _cfg.Profile, StringComparison.OrdinalIgnoreCase))
+            ?? profiles.FirstOrDefault(p => !string.IsNullOrWhiteSpace(p.Name));
+    }
+
+    private string? ActiveProfileName() => ActiveProfile()?.Name;
+
+    private List<PageConfig>? ActivePages() => ActiveProfile()?.Pages ?? _cfg.Pages;
 
     /// <summary>主题编辑器保存：写 themes/{id}.json，刷新扫描列表（前端已本地应用）。</summary>
     private void SaveTheme(JsonElement root)
@@ -464,14 +477,15 @@ public sealed class MainForm : Form
                 ["vignette"] = _cfg.Effects.Vignette,
                 ["curvature"] = _cfg.Effects.Curvature,
             },
-            ["pages"] = _cfg.Pages,
+            ["pages"] = ActivePages(),
             ["autostart"] = _cfg.Autostart ?? false,
             ["themes"] = _themes,
             ["plugins"] = _pluginScripts,
             ["burnin"] = string.IsNullOrWhiteSpace(_cfg.Burnin) ? "always" : _cfg.Burnin,
             ["cardconf"] = _scheduler.CardConf,
             ["profiles"] = _cfg.Profiles?.Select(p => p.Name).ToList(),
-            ["profile"] = _cfg.Profile,
+            ["profile"] = ActiveProfileName(),
+            ["theme_schedule"] = _cfg.ThemeSchedule,
         };
         return JsonSerializer.Serialize(msg, ConfigJson.Web);
     }
@@ -501,7 +515,7 @@ public sealed class MainForm : Form
                         && pagesEl.ValueKind == JsonValueKind.Array)
                     {
                         var pages = pagesEl.Deserialize<List<PageConfig>>(ConfigJson.Web);
-                        if (pages is { Count: > 0 }) ConfigStore.SavePages(pages);
+                        if (pages is { Count: > 0 }) ConfigStore.SavePages(pages, ActiveProfileName());
                     }
                     break;
                 case "set-theme":

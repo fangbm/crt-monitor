@@ -48,7 +48,7 @@ public sealed class ScriptCollector : ICollector
         tick.Metrics.Scripts = results;
     }
 
-    private void RunOne(ScriptConfig sc, Slot slot)
+    private async Task RunOne(ScriptConfig sc, Slot slot)
     {
         try
         {
@@ -58,21 +58,23 @@ public sealed class ScriptCollector : ICollector
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 CreateNoWindow = true,
-            });
-            // ReadLine 是同步阻塞的：命令不输出就直接卡死，必须带超时读
-            var readTask = p!.StandardOutput.ReadLineAsync();
-            if (!readTask.Wait(5000))
+            }) ?? throw new InvalidOperationException("failed to start cmd.exe");
+
+            // 两个管道都要持续读取；只读 stdout 首行或完全不读 stderr 都可能让子进程
+            // 因管道缓冲区写满而卡住。最终仍只将 stdout 第一行暴露给卡片。
+            var stdoutTask = p.StandardOutput.ReadToEndAsync();
+            var stderrTask = p.StandardError.ReadToEndAsync();
+            var completed = Task.WhenAll(p.WaitForExitAsync(), stdoutTask, stderrTask);
+            if (await Task.WhenAny(completed, Task.Delay(TimeSpan.FromSeconds(5))) != completed)
             {
-                p.Kill(entireProcessTree: true);
-                return;
-            }
-            string? line = readTask.Status == TaskStatus.RanToCompletion ? readTask.Result : null;
-            if (!p.WaitForExit(2000))
-            {
-                p.Kill(entireProcessTree: true);
+                try { p.Kill(entireProcessTree: true); } catch { /* 已退出 */ }
+                try { await Task.WhenAny(completed, Task.Delay(TimeSpan.FromSeconds(1))); } catch { /* 清理后退出 */ }
                 return; // 超时不更新值
             }
-            slot.Value = (line ?? "").Trim();
+            await completed; // 传播读取/进程错误
+            string output = await stdoutTask;
+            int lineEnd = output.IndexOfAny(new[] { '\r', '\n' });
+            slot.Value = (lineEnd >= 0 ? output[..lineEnd] : output).Trim();
             slot.AtMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         }
         catch (Exception ex)
