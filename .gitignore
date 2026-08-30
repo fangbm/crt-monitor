@@ -20,3 +20,6 @@ sse.txt
 *.WebView2/
 sse.txt
 app/publish-single/
+app.tests/bin/
+app.tests/obj/
+test-out.txt
