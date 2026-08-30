@@ -50,8 +50,8 @@ const METRICS: Record<ScopeMetric, MetricDef> = {
 
 let selectedMetric: ScopeMetric = "cpu.usage";
 const SWEEP_CAPACITY = 200;
-const SWEEP_DURATION_MS = 10_000;
-const PERSISTENCE_RATIO = 0.85;
+const SWEEP_DURATION_MS = 5_000;
+const PERSISTENCE_RATIO = 1.05;
 
 export function scopeMetricIds(): ScopeMetric[] {
   return Object.keys(METRICS) as ScopeMetric[];
