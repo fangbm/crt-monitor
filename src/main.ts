@@ -273,6 +273,8 @@ function cycleProfile(): void {
 
 /** 布局编辑结束：把当前页坐标发回壳持久化（剥离旧版 layout 字段避免双写）。 */
 function commitLayout(): void {
+  // scope 是临时全屏卡，不属于用户页面布局，绝不能写回 config。
+  if (currentTheme === "scope") return;
   const { layout: _legacy, ...page } = pages[currentPage];
   pages[currentPage] = { ...page, widgets: mounted.map((m) => ({ ...m.pos })) };
   postCommand("save-pages", pages);
@@ -397,7 +399,7 @@ function bindEditInteractions(grid: HTMLElement): void {
   };
 
   grid.addEventListener("pointerdown", (e) => {
-    if (!document.body.classList.contains("edit")) return;
+    if (!document.body.classList.contains("edit") || currentTheme === "scope") return;
     e.preventDefault();
     const { px, py, thrX, thrY, w, h } = toPct(e);
     const zone = pickZone(px, py, thrX, thrY);

@@ -84,6 +84,9 @@ registerWidget({
         value.textContent = metric.format(current);
         scope.push([current]);
       },
+      destroy() {
+        scope.dispose();
+      },
     };
   },
 });

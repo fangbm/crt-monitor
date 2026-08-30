@@ -522,6 +522,8 @@ public sealed class MainForm : Form
                         && themeEl.ValueKind == JsonValueKind.String)
                     {
                         ConfigStore.SetValue("theme", System.Text.Json.Nodes.JsonValue.Create(themeEl.GetString()));
+                        _cfg = ConfigStore.Load();
+                        _web.CoreWebView2?.PostWebMessageAsJson(ConfigMessageJson());
                         Program.Log($"theme -> {themeEl.GetString()}");
                     }
                     break;

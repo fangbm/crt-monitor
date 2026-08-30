@@ -12,6 +12,7 @@ export class Scope {
   private ctx: CanvasRenderingContext2D;
   private history: number[][];
   private opts: ScopeOptions;
+  private resizeObserver?: ResizeObserver;
 
   constructor(canvas: HTMLCanvasElement, opts: ScopeOptions) {
     this.canvas = canvas;
@@ -22,8 +23,13 @@ export class Scope {
     this.ctx = ctx;
     this.resize();
     if (typeof ResizeObserver !== "undefined") {
-      new ResizeObserver(() => this.resize()).observe(canvas);
+      this.resizeObserver = new ResizeObserver(() => this.resize());
+      this.resizeObserver.observe(canvas);
     }
+  }
+
+  dispose(): void {
+    this.resizeObserver?.disconnect();
   }
 
   get capacity(): number {

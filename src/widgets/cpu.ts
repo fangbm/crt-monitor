@@ -37,6 +37,9 @@ registerWidget({
         }
         scope.push([...cpu.cores, cpu.usage]);
       },
+      destroy() {
+        scope?.dispose();
+      },
     };
   },
 });

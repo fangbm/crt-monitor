@@ -25,6 +25,9 @@ registerWidget({
         rx.textContent = `RX ${fmtRate(rx_bps).padStart(10, " ")}`;
         tx.textContent = `TX ${fmtRate(tx_bps).padStart(10, " ")}`;
       },
+      destroy() {
+        scope.dispose();
+      },
     };
   },
 });
