@@ -681,6 +681,8 @@ function openSettings(): void {
     row.append(el("div", "te-label", f.label + (f.note ? ` (${f.note})` : "")));
     let input: HTMLInputElement | HTMLSelectElement;
     const raw = readPath((shellConfig ?? {}) as unknown as Record<string, unknown>, f.key);
+    // 扫描线/暗角存 0-1，面板按百分比展示
+    const isPct = f.key === "effects.scanline" || f.key === "effects.vignette";
     if (f.type === "checkbox") {
       input = el("input", "te-color") as HTMLInputElement;
       input.type = "checkbox";
@@ -698,7 +700,7 @@ function openSettings(): void {
     } else {
       input = el("input", "te-color") as HTMLInputElement;
       input.type = "number";
-      if (typeof raw === "number") input.value = String(raw);
+      if (typeof raw === "number") input.value = String(isPct ? Math.round(raw * 100) : raw);
     }
     inputs.set(f.key, input);
     row.append(input);
