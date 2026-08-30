@@ -54,7 +54,6 @@ const SWEEP_DURATION_MS = 5_000;
 const HORIZONTAL_DIVISIONS = 10;
 const SWEEP_CAPACITY = SAMPLE_RATE_HZ * (SWEEP_DURATION_MS / 1_000);
 const PERSISTENCE_RATIO = 1.05;
-const PERSISTENCE_FADE_GAMMA = 0.45;
 
 export function scopeMetricIds(): ScopeMetric[] {
   return Object.keys(METRICS) as ScopeMetric[];
@@ -120,7 +119,6 @@ registerWidget({
         oscilloscope: true,
         persistence: 1,
         persistenceMs: SWEEP_DURATION_MS * PERSISTENCE_RATIO,
-        persistenceGamma: PERSISTENCE_FADE_GAMMA,
         beam: true,
       });
       return scope;

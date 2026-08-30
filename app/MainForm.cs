@@ -21,6 +21,8 @@ public sealed class MainForm : Form
     private Scheduler _scheduler = null!;
     private ScopeSampler? _scopeSampler;
     private readonly System.Windows.Forms.Timer _timer = new();
+    private System.Threading.Timer? _scopeTimer;
+    private int _scopeTickQueued;
     private List<ThemeFile> _themes;
     private readonly List<string> _pluginScripts;
     private readonly List<ICollector> _pluginCollectors;
@@ -64,6 +66,8 @@ public sealed class MainForm : Form
         FormClosed += (_, _) =>
         {
             _timer.Stop();
+            _scopeTimer?.Dispose();
+            _scopeTimer = null;
             _scheduler.Dispose();
             _scopeSampler?.Dispose();
             _lhm?.Dispose();
@@ -362,13 +366,59 @@ public sealed class MainForm : Form
     private void RebuildSampling()
     {
         _timer.Stop();
+        _scopeTimer?.Dispose();
+        _scopeTimer = null;
+        Interlocked.Exchange(ref _scopeTickQueued, 0);
         _scopeSampler?.Dispose();
         _scopeSampler = null;
         _scheduler.Dispose();
         _scheduler = BuildScheduler();
         if (IsScopeTheme) _scopeSampler = new ScopeSampler(_cfg.ScopeMetric);
+        StartSampling();
+    }
+
+    /// <summary>
+    /// scope 的时间基准必须独立于 WinForms 消息循环；后者在 WebView 绘制时会降频，
+    /// 会让“20Hz × 5 秒”的 100 个样本实际走成接近 10 秒。
+    /// </summary>
+    private void StartSampling()
+    {
+        if (IsScopeTheme)
+        {
+            _timer.Stop();
+            _scopeTimer ??= new System.Threading.Timer(_ => QueueScopeTick(), null, 0, SamplingInterval);
+            return;
+        }
+
+        _scopeTimer?.Dispose();
+        _scopeTimer = null;
         _timer.Interval = SamplingInterval;
         _timer.Start();
+        PushTick();
+    }
+
+    private void QueueScopeTick()
+    {
+        // WebView 只能在 UI 线程访问；若上一拍尚未处理，宁可跳过而不能排队造成滞后扫描。
+        if (Interlocked.Exchange(ref _scopeTickQueued, 1) != 0) return;
+        try
+        {
+            BeginInvoke((Action)(() =>
+            {
+                try
+                {
+                    if (IsScopeTheme) PushTick();
+                }
+                finally
+                {
+                    Volatile.Write(ref _scopeTickQueued, 0);
+                }
+            }));
+        }
+        catch (InvalidOperationException)
+        {
+            Volatile.Write(ref _scopeTickQueued, 0);
+        }
     }
 
     /// <summary>设置面板保存：合并写回 config.json → 重建调度器/远看服务 → 重发 config。</summary>
@@ -460,11 +510,10 @@ public sealed class MainForm : Form
             // config 每次导航完成都要重发：页面 reload（渲染进程崩溃恢复等）后
             // 前端主题目录/布局会回到默认，靠这条消息自愈。
             core.PostWebMessageAsJson(ConfigMessageJson());
-            if (!_timer.Enabled)
+            if (!_timer.Enabled && _scopeTimer is null)
             {
                 _web.Focus(); // 首次加载把键盘焦点交给页面
-                _timer.Start();
-                PushTick(); // 首拍，避免白屏等待一个 interval
+                StartSampling();
             }
         };
         if (_cfg.DevUrl is { } devUrl)
