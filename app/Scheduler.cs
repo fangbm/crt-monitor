@@ -11,18 +11,23 @@ public sealed class Scheduler : IDisposable
 
     private readonly List<ICollector> _collectors;
     private readonly AlertEvaluator _alerts;
-    private readonly HistoryService _history;
+    private readonly HistoryService? _history;
     private readonly bool _ownsHistory;
     private int _tickCount;
 
     /// <summary>最近一轮的 CPU 总占用（托盘图标用）。</summary>
     public double? LastCpuPercent { get; private set; }
 
-    public Scheduler(List<ICollector> collectors, Config cfg, Action<string>? notify, HistoryService? sharedHistory = null)
+    public Scheduler(
+        List<ICollector> collectors,
+        Config cfg,
+        Action<string>? notify,
+        HistoryService? sharedHistory = null,
+        bool recordHistory = true)
     {
         _collectors = collectors;
-        _history = sharedHistory ?? new HistoryService();
-        _ownsHistory = sharedHistory is null;
+        _history = recordHistory ? sharedHistory ?? new HistoryService() : null;
+        _ownsHistory = _history is not null && sharedHistory is null;
         _alerts = new AlertEvaluator(cfg.Alerts, cfg.AlertSound, notify);
         CardConf = cfg.CardConf;
     }
@@ -39,7 +44,7 @@ public sealed class Scheduler : IDisposable
             foreach (var c in _collectors)
                 c.Poll(tick);
             _alerts.Evaluate(tick);
-            _history.Add(tick);
+            _history?.Add(tick);
             LastCpuPercent = tick.Metrics.Cpu.Usage;
             _tickCount++;
             return JsonSerializer.Serialize(tick, JsonOpts);
@@ -56,19 +61,19 @@ public sealed class Scheduler : IDisposable
 
     public string? HistoryJson()
     {
-        try { return JsonSerializer.Serialize(_history.Snapshot(), JsonOpts); }
+        try { return _history is null ? null : JsonSerializer.Serialize(_history.Snapshot(), JsonOpts); }
         catch { return null; }
     }
 
     /// <summary>24h 历史导出 CSV（export-csv 命令用）。</summary>
     public string? HistoryCsv()
     {
-        try { return _history.ToCsv(); }
+        try { return _history?.ToCsv(); }
         catch { return null; }
     }
 
     public void Dispose()
     {
-        if (_ownsHistory) _history.Dispose();
+        if (_ownsHistory) _history?.Dispose();
     }
 }

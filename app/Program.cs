@@ -15,6 +15,13 @@ internal static class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        int collectorArg = Array.IndexOf(args, "--collector");
+        if (collectorArg >= 0 && collectorArg + 1 < args.Length)
+        {
+            CollectorMode.Run(args[collectorArg + 1]);
+            return;
+        }
+
         // --serve：无界面数据端点模式（给远程监控用，见 README）
         if (args.Contains("--serve"))
         {

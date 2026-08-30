@@ -1,5 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using System.IO.Pipes;
+using System.Diagnostics;
 using CrtMonitor.Collectors;
 using Microsoft.Web.WebView2.WinForms;
 
@@ -18,18 +20,14 @@ public sealed class MainForm : Form
     private const int HTCAPTION = 0x2;
     private Config _cfg;
     private readonly WebView2 _web = new();
-    private Scheduler _scheduler = null!;
-    private ScopeSampler? _scopeSampler;
-    private readonly System.Windows.Forms.Timer _timer = new();
-    private System.Threading.Timer? _scopeTimer;
-    private int _scopeTickQueued;
     private List<ThemeFile> _themes;
     private readonly List<string> _pluginScripts;
-    private readonly List<ICollector> _pluginCollectors;
     private readonly HistoryService _history = new();
-    private LhmCollector? _lhm;
-    private SpectrumCollector? _spectrum;
     private WebRemote? _webRemote;
+    private Process? _collectorProcess;
+    private NamedPipeClientStream? _collectorPipe;
+    private CancellationTokenSource? _collectorCts;
+    private int _collectorTickCount;
     private readonly TrayService _tray;
     private bool _fullscreen = true;
     private Rectangle _restoreBounds;
@@ -38,12 +36,9 @@ public sealed class MainForm : Form
     {
         _cfg = cfg;
         _themes = ThemeStore.Scan(AppContext.BaseDirectory);
-        var (pluginCollectors, scripts) = PluginLoader.Load(Path.Combine(AppContext.BaseDirectory, "plugins"));
+        var (_, scripts) = PluginLoader.Load(Path.Combine(AppContext.BaseDirectory, "plugins"));
         _pluginScripts = scripts;
-        _pluginCollectors = pluginCollectors;
         _tray = new TrayService(this, () => Array.IndexOf(Screen.AllScreens, PickScreen()));
-        _scheduler = BuildScheduler();
-        if (IsScopeTheme) _scopeSampler = new ScopeSampler(_cfg.ScopeMetric);
 
         FormBorderStyle = FormBorderStyle.None;
         Text = "CRT-Monitor"; // 窗口化时 Alt+Tab 有名字
@@ -57,21 +52,12 @@ public sealed class MainForm : Form
         _web.DefaultBackgroundColor = Color.Black; // 同上：控件自身的默认底色
         Controls.Add(_web);
 
-        _timer.Interval = SamplingInterval;
-        _timer.Tick += (s, e) => PushTick();
-
         Load += async (_, _) => await InitWebViewAsync();
         KeyPreview = true;
         KeyDown += OnShellHotkey;
         FormClosed += (_, _) =>
         {
-            _timer.Stop();
-            _scopeTimer?.Dispose();
-            _scopeTimer = null;
-            _scheduler.Dispose();
-            _scopeSampler?.Dispose();
-            _lhm?.Dispose();
-            _spectrum?.Dispose();
+            StopCollector();
             _history.Dispose();
             _tray.Dispose();
             _webRemote?.Dispose();
@@ -88,9 +74,10 @@ public sealed class MainForm : Form
                 Path.Combine(AppContext.BaseDirectory, "wwwroot"),
                 () => _lastTickJson,
                 ConfigMessageJson,
-                () => _scheduler.HistoryJson());
+                HistoryJson);
             _webRemote.Start();
         }
+        StartCollector();
     }
 
     /// <summary>窗口状态记忆：屏幕序号，windowstate.json。返回是否成功恢复。</summary>
@@ -241,7 +228,7 @@ public sealed class MainForm : Form
     {
         try
         {
-            string csv = _scheduler.HistoryCsv() ?? "";
+            string csv = _history.ToCsv();
             string dir = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "CRT-Monitor");
             Directory.CreateDirectory(dir);
@@ -322,103 +309,84 @@ public sealed class MainForm : Form
         }
     }
 
-    /// <summary>按当前 _cfg 组装采集器列表并创建调度器（LHM/频谱实例复用，历史共享）。</summary>
-    private Scheduler BuildScheduler()
-    {
-        if (IsScopeTheme)
-        {
-            // scope 运行时由 ScopeSampler 单独采样，完整仪表盘采集器完全不启动。
-            _lhm?.Dispose();
-            _lhm = null;
-            _spectrum?.Dispose();
-            _spectrum = null;
-            return new Scheduler(new List<ICollector>(), _cfg, msg => _tray.ShowBalloon("CRT-Monitor 告警", msg), _history);
-        }
-        if (_cfg.Lhm && _lhm is null) _lhm = new LhmCollector(enabled: true);
-        if (!_cfg.Lhm) { _lhm?.Dispose(); _lhm = null; }
-        if (_cfg.Spectrum && _spectrum is null) _spectrum = new SpectrumCollector(enabled: true);
-        if (!_cfg.Spectrum) { _spectrum?.Dispose(); _spectrum = null; }
-
-        var collectors = new List<ICollector>
-        {
-            new CpuMemCollector(),
-            new DiskCollector(),
-            new NetCollector(),
-            new ProcessCollector(),
-            new WeatherCollector(_cfg.Weather),
-            new MediaCollector(),
-            new ScriptCollector(_cfg.Scripts),
-            new RemoteCollector(_cfg.Remotes),
-            new PingCollector(_cfg.Pings),
-            new EventsCollector(),
-        };
-        if (_lhm is not null) collectors.Add(_lhm);
-        if (_spectrum is not null) collectors.Add(_spectrum);
-        collectors.AddRange(_pluginCollectors);
-
-        return new Scheduler(collectors, _cfg, msg => _tray.ShowBalloon("CRT-Monitor 告警", msg), _history);
-    }
-
     private bool IsScopeTheme => string.Equals(_cfg.Theme, "scope", StringComparison.OrdinalIgnoreCase);
-    private int SamplingInterval => IsScopeTheme ? 50 : Math.Max(250, _cfg.RefreshMs);
-
-    /// <summary>主题/设置变化后重建当前采样路径；scope 不启动完整仪表盘采集。</summary>
-    private void RebuildSampling()
+    /// <summary>启动无界面采集进程；本进程不运行任何指标采样定时器。</summary>
+    private void StartCollector()
     {
-        _timer.Stop();
-        _scopeTimer?.Dispose();
-        _scopeTimer = null;
-        Interlocked.Exchange(ref _scopeTickQueued, 0);
-        _scopeSampler?.Dispose();
-        _scopeSampler = null;
-        _scheduler.Dispose();
-        _scheduler = BuildScheduler();
-        if (IsScopeTheme) _scopeSampler = new ScopeSampler(_cfg.ScopeMetric);
-        StartSampling();
-    }
-
-    /// <summary>
-    /// scope 的时间基准必须独立于 WinForms 消息循环；后者在 WebView 绘制时会降频，
-    /// 会让“20Hz × 5 秒”的 100 个样本实际走成接近 10 秒。
-    /// </summary>
-    private void StartSampling()
-    {
-        if (IsScopeTheme)
-        {
-            _timer.Stop();
-            _scopeTimer ??= new System.Threading.Timer(_ => QueueScopeTick(), null, 0, SamplingInterval);
-            return;
-        }
-
-        _scopeTimer?.Dispose();
-        _scopeTimer = null;
-        _timer.Interval = SamplingInterval;
-        _timer.Start();
-        PushTick();
-    }
-
-    private void QueueScopeTick()
-    {
-        // WebView 只能在 UI 线程访问；若上一拍尚未处理，宁可跳过而不能排队造成滞后扫描。
-        if (Interlocked.Exchange(ref _scopeTickQueued, 1) != 0) return;
+        if (IsDisposed) return;
+        string pipeName = $"CrtMonitor.Collector.{Environment.ProcessId}.{Guid.NewGuid():N}";
         try
         {
-            BeginInvoke((Action)(() =>
+            _collectorCts = new CancellationTokenSource();
+            _collectorPipe = new NamedPipeClientStream(".", pipeName, PipeDirection.In, PipeOptions.Asynchronous);
+            var exe = Environment.ProcessPath ?? Application.ExecutablePath;
+            _collectorProcess = Process.Start(new ProcessStartInfo(exe, $"--collector {pipeName}")
             {
-                try
-                {
-                    if (IsScopeTheme) PushTick();
-                }
-                finally
-                {
-                    Volatile.Write(ref _scopeTickQueued, 0);
-                }
-            }));
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                WindowStyle = ProcessWindowStyle.Hidden,
+                WorkingDirectory = AppContext.BaseDirectory,
+            });
+            if (_collectorProcess is null) throw new InvalidOperationException("collector process did not start");
+            _ = ReadCollectorAsync(_collectorPipe, _collectorCts.Token);
         }
-        catch (InvalidOperationException)
+        catch (Exception ex)
         {
-            Volatile.Write(ref _scopeTickQueued, 0);
+            Program.Log($"collector start failed: {ex.Message}");
+            StopCollector();
         }
+    }
+
+    private void RestartCollector()
+    {
+        StopCollector();
+        StartCollector();
+    }
+
+    private void StopCollector()
+    {
+        _collectorCts?.Cancel();
+        _collectorCts?.Dispose();
+        _collectorCts = null;
+        _collectorPipe?.Dispose();
+        _collectorPipe = null;
+        if (_collectorProcess is { HasExited: false })
+        {
+            try { _collectorProcess.Kill(entireProcessTree: true); }
+            catch { /* 已退出/系统正在关闭 */ }
+        }
+        _collectorProcess?.Dispose();
+        _collectorProcess = null;
+    }
+
+    private async Task ReadCollectorAsync(NamedPipeClientStream pipe, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await pipe.ConnectAsync(5_000, cancellationToken);
+            using var reader = new StreamReader(pipe, leaveOpen: true);
+            while (!cancellationToken.IsCancellationRequested && await reader.ReadLineAsync(cancellationToken) is { } json)
+            {
+                if (!IsDisposed && IsHandleCreated)
+                    BeginInvoke((Action)(() =>
+                    {
+                        // 设置变更会换掉管道；旧进程残留的一拍绝不能覆盖新配置的数据。
+                        if (ReferenceEquals(_collectorPipe, pipe)) ReceiveCollectorTick(json);
+                    }));
+            }
+        }
+        catch (OperationCanceledException) { }
+        catch (IOException ex) when (cancellationToken.IsCancellationRequested) { _ = ex; }
+        catch (Exception ex)
+        {
+            Program.Log($"collector pipe failed: {ex.Message}");
+        }
+    }
+
+    private string? HistoryJson()
+    {
+        try { return JsonSerializer.Serialize(_history.Snapshot(), ConfigJson.Web); }
+        catch { return null; }
     }
 
     /// <summary>设置面板保存：合并写回 config.json → 重建调度器/远看服务 → 重发 config。</summary>
@@ -430,7 +398,7 @@ public sealed class MainForm : Form
             int oldPort = _cfg.WebPort;
             _cfg = ConfigStore.Load();
 
-            RebuildSampling();
+            RestartCollector();
 
             if (_cfg.WebPort != oldPort)
             {
@@ -443,7 +411,7 @@ public sealed class MainForm : Form
                         Path.Combine(AppContext.BaseDirectory, "wwwroot"),
                         () => _lastTickJson,
                         ConfigMessageJson,
-                        () => _scheduler.HistoryJson());
+                        HistoryJson);
                     _webRemote.Start();
                 }
             }
@@ -510,11 +478,7 @@ public sealed class MainForm : Form
             // config 每次导航完成都要重发：页面 reload（渲染进程崩溃恢复等）后
             // 前端主题目录/布局会回到默认，靠这条消息自愈。
             core.PostWebMessageAsJson(ConfigMessageJson());
-            if (!_timer.Enabled && _scopeTimer is null)
-            {
-                _web.Focus(); // 首次加载把键盘焦点交给页面
-                StartSampling();
-            }
+            _web.Focus(); // 首次加载把键盘焦点交给页面
         };
         if (_cfg.DevUrl is { } devUrl)
         {
@@ -541,7 +505,7 @@ public sealed class MainForm : Form
         {
             ["type"] = "config",
             ["theme"] = _cfg.Theme,
-            ["refresh_ms"] = SamplingInterval,
+            ["refresh_ms"] = IsScopeTheme ? 50 : Math.Max(250, _cfg.RefreshMs),
             ["effects"] = _cfg.Effects is null ? null : new Dictionary<string, object?>
             {
                 ["scanline"] = _cfg.Effects.Scanline,
@@ -554,7 +518,7 @@ public sealed class MainForm : Form
             ["themes"] = _themes,
             ["plugins"] = _pluginScripts,
             ["burnin"] = string.IsNullOrWhiteSpace(_cfg.Burnin) ? "always" : _cfg.Burnin,
-            ["cardconf"] = _scheduler.CardConf,
+            ["cardconf"] = _cfg.CardConf,
             ["profiles"] = _cfg.Profiles?.Select(p => p.Name).ToList(),
             ["profile"] = ActiveProfileName(),
             ["theme_schedule"] = _cfg.ThemeSchedule,
@@ -597,7 +561,7 @@ public sealed class MainForm : Form
                     {
                         ConfigStore.SetValue("theme", System.Text.Json.Nodes.JsonValue.Create(themeEl.GetString()));
                         _cfg = ConfigStore.Load();
-                        RebuildSampling();
+                        RestartCollector();
                         _web.CoreWebView2?.PostWebMessageAsJson(ConfigMessageJson());
                         Program.Log($"theme -> {themeEl.GetString()}");
                     }
@@ -608,7 +572,7 @@ public sealed class MainForm : Form
                     {
                         ConfigStore.SetValue("scope_metric", System.Text.Json.Nodes.JsonValue.Create(metricEl.GetString()));
                         _cfg = ConfigStore.Load();
-                        RebuildSampling();
+                        RestartCollector();
                         _web.CoreWebView2?.PostWebMessageAsJson(ConfigMessageJson());
                         Program.Log($"scope metric -> {metricEl.GetString()}");
                     }
@@ -691,18 +655,29 @@ public sealed class MainForm : Form
         }
     }
 
-    private void PushTick()
+    /// <summary>采集子进程发来的已序列化 tick；UI 只转发显示与维护展示历史。</summary>
+    private void ReceiveCollectorTick(string json)
     {
-        if (_web.CoreWebView2 is not { } core) return;
-        string? json = IsScopeTheme ? _scopeSampler?.CollectJson() : _scheduler.CollectJson();
-        if (json is not null)
+        _lastTickJson = json;
+        _web.CoreWebView2?.PostWebMessageAsJson(json);
+        if (IsScopeTheme) return;
+
+        try
         {
-            _lastTickJson = json; // Web 远看复用同一份，避免并发采集
-            core.PostWebMessageAsJson(json);
-            if (!IsScopeTheme && json.Contains("\"cpu\":") && _scheduler.LastCpuPercent is { } cpu)
-                _tray.UpdateCpu(cpu);
+            var tick = JsonSerializer.Deserialize<TickDto>(json, ConfigJson.Web);
+            if (tick is null) return;
+            _history.Add(tick);
+            _tray.UpdateCpu(tick.Metrics.Cpu.Usage);
+            _collectorTickCount++;
+            if (_collectorTickCount == 1 || _collectorTickCount % 60 == 0)
+            {
+                if (HistoryJson() is { } history)
+                    _web.CoreWebView2?.PostWebMessageAsJson(history);
+            }
         }
-        if (!IsScopeTheme && _scheduler.ShouldPushHistory() && _scheduler.HistoryJson() is { } history)
-            core.PostWebMessageAsJson(history);
+        catch (JsonException ex)
+        {
+            Program.Log($"collector tick parse failed: {ex.Message}");
+        }
     }
 }
