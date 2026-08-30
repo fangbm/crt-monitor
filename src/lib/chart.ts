@@ -193,7 +193,7 @@ export class Scope {
         i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
       }
       ctx.strokeStyle = isPrimary ? phos : dim;
-      ctx.lineWidth = isPrimary ? 2 : 1;
+      ctx.lineWidth = isPrimary ? (this.opts.oscilloscope ? 3 : 2) : (this.opts.oscilloscope ? 1.6 : 1);
       ctx.shadowColor = phos;
       ctx.shadowBlur = isPrimary ? 8 : 0;
       ctx.stroke();
@@ -210,7 +210,7 @@ export class Scope {
     frame.forEach((ch, ci) => {
       const isPrimary = ci === frame.length - 1 || frame.length === 1;
       ctx.strokeStyle = isPrimary ? phos : dim;
-      ctx.lineWidth = isPrimary ? 2 : 1;
+      ctx.lineWidth = isPrimary ? 3 : 1.6;
       ctx.shadowColor = phos;
       ctx.shadowBlur = isPrimary ? 8 : 0;
       for (let i = 1; i < ch.length; i++) {
