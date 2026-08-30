@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace CrtMonitor;
 
@@ -45,6 +46,9 @@ public sealed class Config
     public List<ThemePeriod>? ThemeSchedule { get; init; }
     /// <summary>自启动延迟秒数（开机后等系统稳定再显示窗口）</summary>
     public int StartDelaySec { get; init; }
+    /// <summary>全屏示波器主题展示的唯一指标。</summary>
+    [JsonPropertyName("scope_metric")]
+    public string ScopeMetric { get; init; } = "cpu.usage";
 }
 
 public sealed class ThemePeriod

@@ -59,6 +59,8 @@ export interface ShellConfig {
   profile?: string | null;
   /** 主题定时轮换时段 */
   theme_schedule?: Array<{ from: string; to: string; theme: string }> | null;
+  /** 全屏示波器主题展示的唯一指标 */
+  scope_metric?: string;
 }
 
 export interface AutostartNotice {

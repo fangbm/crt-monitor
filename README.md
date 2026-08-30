@@ -148,7 +148,7 @@ config.json 加 `"spectrum": true` 启用（WASAPI loopback 采集系统输出�
 
 ## 扩展机制
 
-**主题**：exe 同目录 `themes/*.json`，字段 `{"id","name","vars":{...},"effects":{...可选}}`，启动自动扫描，`T` 键循环切换并持久化。`vars` 除五个色阶（`--phos/--phos-bright/--phos-dim/--phos-faint/--bg`）外还可设 `--glow`（辉光强度，默认 60%）、`--radius`（面板圆角）和 **`--font-mono`（字体，如 `"Fusion Pixel 12px monospace", monospace`）**；`effects` 让主题自带特效参数（如现代风关闭扫描线/闪烁/暗角/弯曲），切走自动还原全局设置。内置：磷光绿 / 琥珀 / 纸白；主题目录 8 套：`ocean` 海蓝、`red` 红色警戒、`ice` 冰蓝、`violet` 紫罗兰、`gold` P3 金黄、`magenta` 等离子粉、`sepia` 怀旧褐、`modern` 现代简约（蓝灰 + 圆角 + 无 CRT 特效）。
+**主题**：exe 同目录 `themes/*.json`，字段 `{"id","name","vars":{...},"effects":{...可选}}`，启动自动扫描，`T` 键循环切换并持久化。`vars` 除五个色阶（`--phos/--phos-bright/--phos-dim/--phos-faint/--bg`）外还可设 `--glow`（辉光强度，默认 60%）、`--radius`（面板圆角）和 **`--font-mono`（字体，如 `"Fusion Pixel 12px monospace", monospace`）**；`effects` 让主题自带特效参数（如现代风关闭扫描线/闪烁/暗角/弯曲），切走自动还原全局设置。内置：磷光绿 / 琥珀 / 纸白 / `scope` CRT Oscilloscope；其中 `scope` 会全屏只展示一条指标曲线，进编辑模式后打开 SETTINGS 可选择 CPU、内存、上下行网速或 CPU/GPU 温度。主题目录另有 8 套：`ocean` 海蓝、`red` 红色警戒、`ice` 冰蓝、`violet` 紫罗兰、`gold` P3 金黄、`magenta` 等离子粉、`sepia` 怀旧褐、`modern` 现代简约（蓝灰 + 圆角 + 无 CRT 特效）。
 
 **自启延迟**：config `"start_delay_sec": 15` —— 开机自启时等 15 秒再显示窗口（错开开机高峰）。
 

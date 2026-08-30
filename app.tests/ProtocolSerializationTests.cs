@@ -6,6 +6,14 @@ public class ProtocolSerializationTests
 {
     private static readonly JsonSerializerOptions Web = new(JsonSerializerDefaults.Web);
 
+    [Fact]
+    public void ScopeMetric_ConfigKey_UsesSnakeCase()
+    {
+        var cfg = JsonSerializer.Deserialize<Config>("{\"scope_metric\":\"net.rx_bps\"}", ConfigJson.Read);
+        Assert.NotNull(cfg);
+        Assert.Equal("net.rx_bps", cfg!.ScopeMetric);
+    }
+
     /// <summary>协议对齐回归网：C# DTO 序列化字段名必须与前端 src/lib/types.ts 一致。</summary>
     [Fact]
     public void TickDto_FieldNames_MatchProtocol()

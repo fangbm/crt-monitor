@@ -28,6 +28,7 @@ import "./widgets/gpu";
 import "./widgets/boot";
 import "./widgets/spectrum";
 import "./widgets/diskhealth";
+import { scopeMetricLabel, setScopeMetric } from "./widgets/scope";
 
 const LOGO = String.raw`  ____ ____  ____    ____
  / ___/ ___||  _ \  |  _ \ ___  __ _ _   _  ___
@@ -222,7 +223,9 @@ function setPos(cell: HTMLElement, p: PageWidget): void {
 
 function updatePageIndicator(): void {
   const el = document.getElementById("hd-page");
-  if (el) el.textContent = `${pages[currentPage].name}  ${currentPage + 1}/${pages.length}`;
+  if (el) el.textContent = currentTheme === "scope"
+    ? `SCOPE · ${scopeMetricLabel()}`
+    : `${pages[currentPage].name}  ${currentPage + 1}/${pages.length}`;
 }
 
 function mountPage(idx: number): void {
@@ -232,7 +235,10 @@ function mountPage(idx: number): void {
   grid.style.cursor = "";
   mounted.length = 0;
   widgets = [];
-  for (const pos of completeWidgets(pages[idx])) {
+  const positions: PageWidget[] = currentTheme === "scope"
+    ? [{ id: "scope", x: 0, y: 0, w: 100, h: 100 }]
+    : completeWidgets(pages[idx]);
+  for (const pos of positions) {
     const def = registeredWidgets().find((d) => d.id === pos.id);
     if (!def) continue;
     const cell = el("section", "widget");
@@ -246,7 +252,7 @@ function mountPage(idx: number): void {
 }
 
 function switchPage(delta: number): void {
-  if (pages.length < 2) return;
+  if (currentTheme === "scope" || pages.length < 2) return;
   currentPage = (currentPage + delta + pages.length) % pages.length;
   setEditMode(false);
   mountPage(currentPage);
@@ -633,6 +639,7 @@ interface SettingField {
 
 const SETTINGS_FIELDS: SettingField[] = [
   { key: "refresh_ms", label: "刷新间隔 ms", type: "number" },
+  { key: "scope_metric", label: "示波器指标", type: "select", options: ["cpu.usage", "mem.used_pct", "net.rx_bps", "net.tx_bps", "sensors.cpu_temp", "sensors.gpu_temp"] },
   { key: "burnin", label: "防灼屏", type: "select", options: ["always", "idle", "off"] },
   { key: "web_port", label: "Web 端口", type: "number", note: "0=关闭" },
   { key: "spectrum", label: "音频频谱", type: "checkbox" },
@@ -815,6 +822,14 @@ function applyEffects(cfg: ShellConfig): void {
   setDefaultEffects(cfg.effects ?? undefined);
 }
 
+/** 示波器主题不显示常规页头和卡片框，改为一块全屏曲线。 */
+function setScopeMode(theme: string): boolean {
+  const enabled = theme === "scope";
+  const wasEnabled = document.body.classList.contains("scope-mode");
+  document.body.classList.toggle("scope-mode", enabled);
+  return wasEnabled !== enabled;
+}
+
 /** plugins/*.js 经 plugins.local 虚拟域动态 import；模块内部用 window.CRT.registerWidget 注册。 */
 function loadPlugins(names: string[]): Promise<void> {
   if (!names.length || !window.chrome?.webview) return Promise.resolve();
@@ -833,6 +848,8 @@ function applyConfig(c: ShellConfig): void {
   shellConfig = c;
   if (c.themes) setThemeCatalog(c.themes);
   currentTheme = c.theme;
+  const scopeModeChanged = setScopeMode(c.theme);
+  const scopeMetricChanged = setScopeMetric(c.scope_metric);
   applyTheme(c.theme);
   applyEffects(c);
   shellBurnin = c.burnin;
@@ -850,7 +867,8 @@ function applyConfig(c: ShellConfig): void {
   currentPage = Math.min(currentPage, pages.length - 1);
   // 已挂载过的界面（如 P 切预设后壳重发 config）需要立即重挂换页组；
   // 启动首挂前 app 仍隐藏，由 main() 负责首次挂载。
-  if (pagesBefore !== JSON.stringify(pages) && !document.getElementById("app")!.hidden) {
+  if ((pagesBefore !== JSON.stringify(pages) || scopeModeChanged || scopeMetricChanged)
+      && !document.getElementById("app")!.hidden) {
     mountPage(currentPage);
   }
   if (c.plugins && c.plugins.length > 0) {
@@ -881,7 +899,9 @@ function renderTick(m: MetricsTick): void {
 /** 统一的主题切换入口：更新状态 + 应用 + 持久化 + 提示 + 刷新管理器高亮 */
 function switchTheme(id: string): void {
   currentTheme = id;
+  const scopeModeChanged = setScopeMode(id);
   applyTheme(id);
+  if (scopeModeChanged && !document.getElementById("app")!.hidden) mountPage(currentPage);
   postCommand("set-theme", id);
   flashHint(`THEME: ${id.toUpperCase()}`);
   renderCardManager();
@@ -1013,7 +1033,9 @@ function checkThemeSchedule(): void {
     const inRange = from <= to ? cur >= from && cur < to : cur >= from || cur < to;
     if (inRange && currentTheme !== p.theme) {
       currentTheme = p.theme;
+      const scopeModeChanged = setScopeMode(p.theme);
       applyTheme(p.theme);
+      if (scopeModeChanged && !document.getElementById("app")!.hidden) mountPage(currentPage);
       postCommand("set-theme", p.theme);
       flashHint(`THEME SCHEDULE: ${p.theme.toUpperCase()}`);
     }

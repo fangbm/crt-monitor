@@ -484,6 +484,7 @@ public sealed class MainForm : Form
             ["profiles"] = _cfg.Profiles?.Select(p => p.Name).ToList(),
             ["profile"] = ActiveProfileName(),
             ["theme_schedule"] = _cfg.ThemeSchedule,
+            ["scope_metric"] = _cfg.ScopeMetric,
         };
         return JsonSerializer.Serialize(msg, ConfigJson.Web);
     }

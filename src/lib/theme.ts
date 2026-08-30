@@ -48,6 +48,20 @@ const BUILTIN: Theme[] = [
       "--bg": "#05080a",
     },
   },
+  {
+    id: "scope",
+    name: "CRT Oscilloscope",
+    vars: {
+      "--phos": "#61ff9b",
+      "--phos-bright": "#ddffe9",
+      "--phos-dim": "#12613a",
+      "--phos-faint": "#082c1b",
+      "--bg": "#010704",
+      "--glow": "92%",
+      "--radius": "0px",
+    },
+    effects: { scanline: 0.48, flicker: true, vignette: 0.72, curvature: true },
+  },
 ];
 
 let catalog: Theme[] = BUILTIN;

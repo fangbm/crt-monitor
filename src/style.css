@@ -136,6 +136,60 @@ body::before {
   will-change: transform;
 }
 
+/* 全屏示波器：只保留选择的一条指标曲线，不挂载普通仪表卡。 */
+body.scope-mode #app {
+  padding: clamp(16px, 3vh, 42px) clamp(18px, 4vw, 64px);
+}
+
+body.scope-mode #hd {
+  display: none;
+}
+
+body.scope-mode .widget.scope-widget {
+  border: 0;
+  padding: 0;
+  gap: 0;
+}
+
+.scope-head,
+.scope-foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  letter-spacing: 0.2em;
+  font-size: clamp(11px, 1.5vh, 17px);
+}
+
+.scope-head {
+  min-height: 2.4em;
+  color: var(--phos-dim);
+  border-bottom: 1px solid var(--phos-dim);
+}
+
+.scope-name {
+  color: var(--phos-bright);
+}
+
+.scope-value {
+  color: var(--phos-bright);
+  font-size: clamp(22px, 4vh, 54px);
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 14px color-mix(in srgb, var(--phos) var(--glow), transparent);
+}
+
+.scope-canvas {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+}
+
+.scope-foot {
+  min-height: 2em;
+  color: var(--phos-dim);
+  border-top: 1px solid var(--phos-dim);
+}
+
 #hd {
   display: flex;
   align-items: center;
